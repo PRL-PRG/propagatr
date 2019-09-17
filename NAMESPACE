@@ -1,0 +1,2 @@
+useDynLib(propagatr, .registration = TRUE, .fixes = "C_")
+exportPattern("^[[:alpha:]]+")

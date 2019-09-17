@@ -1,0 +1,6 @@
+Package: propagatr
+Type: Package
+Title: Propagates type information from inner to outer functions.
+Version: 1.0
+Date: 2019-09-17
+RoxygenNote: 6.1.1

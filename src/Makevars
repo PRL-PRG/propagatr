@@ -1,0 +1,2 @@
+GIT_COMMIT_INFO != git log --pretty=oneline -1
+PKG_CPPFLAGS=-I$(R_HOME)/src/include/ -DGIT_COMMIT_INFO='"$(GIT_COMMIT_INFO)"' --std=c++17 -g3 -O2 -ggdb3
