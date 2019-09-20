@@ -19,7 +19,8 @@ destroy_dyntracer <- function(dyntracer) {
     invisible(.Call(C_destroy_dyntracer, dyntracer))
 }
 
-
+# expr: program to trace
+# output_dir: where to put the data files
 dyntrace_promises <- function(expr,
                               output_dirpath,
                               verbose = FALSE,
