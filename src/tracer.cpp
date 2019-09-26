@@ -34,8 +34,9 @@ SEXP create_dyntracer(SEXP output_dirpath,
     dyntracer->probe_closure_exit = closure_exit;
     dyntracer->probe_builtin_exit = builtin_exit;
     dyntracer->probe_special_exit = special_exit;
-    dyntracer->state = state;
+    dyntracer->probe_promise_force_entry = promise_force_entry;
     dyntracer->probe_promise_force_exit = promise_force_exit;
+    dyntracer->state = state;
 
     /* Move these up as needed.
     dyntracer->probe_deserialize_object = deserialize_object;

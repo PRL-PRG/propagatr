@@ -207,6 +207,23 @@ void special_exit(dyntracer_t* dyntracer,
    state.exit_probe(Event::SpecialExit);
 }
 
+
+void promise_force_entry(dyntracer_t* dyntracer, const SEXP promise) {
+    TracerState& state = tracer_state(dyntracer);
+
+    state.enter_probe(Event::PromiseForceEntry);
+
+    DenotedValue* promise_state = state.lookup_promise(promise, true);
+
+    /* Force promise in the end. This is important to get correct force order
+       from the call object. */
+    promise_state->force();
+
+    state.push_stack(promise_state);
+
+    state.exit_probe(Event::PromiseForceEntry);
+}
+
 void promise_force_exit(dyntracer_t* dyntracer, const SEXP promise) {
     TracerState& state = tracer_state(dyntracer);
 
