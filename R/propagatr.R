@@ -21,12 +21,12 @@ destroy_dyntracer <- function(dyntracer) {
 
 # expr: program to trace
 # output_dir: where to put the data files
-dyntrace_promises <- function(expr,
-                              output_dirpath,
-                              verbose = FALSE,
-                              truncate = TRUE,
-                              binary = FALSE,
-                              compression_level = 0) {
+dyntrace_types <- function( expr,
+                            output_dirpath,
+                            verbose = FALSE,
+                            truncate = TRUE,
+                            binary = FALSE,
+                            compression_level = 0) {
 
     write(as.character(Sys.time()), file.path(output_dirpath, "BEGIN"))
 

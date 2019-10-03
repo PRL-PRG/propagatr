@@ -26,6 +26,227 @@ bool file_exists(const std::string& filepath) {
     return std::ifstream(filepath).good();
 }
 
+// typr stuff
+
+std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
+    int len = LENGTH(vec_sexp);
+    bool has_na = false;
+    int i = 0;
+    std::string ret_str = vec_type;
+
+    // deal with the possiblity that its a matrix
+    if (Rf_isMatrix(vec_sexp)) {
+        int n_row = Rf_nrows(vec_sexp);
+        int n_col = Rf_ncols(vec_sexp);
+
+        ret_str.append("[" + std::to_string(n_row) + ", " + std::to_string(n_col) + "]");
+
+        return ret_str;
+    }
+
+    switch(TYPEOF(vec_sexp)) {
+        case STRSXP: {
+            for (i = 0; i < len; ++i) {
+                if (STRING_ELT(vec_sexp, i) == NA_STRING) {
+                    has_na = true;
+                    break;
+                }
+            }
+            break;
+        }
+        case LGLSXP: {
+            auto as_bool_vec = LOGICAL(vec_sexp);
+            for (i = 0; i < len; ++i) {
+                if (as_bool_vec[i] == NA_LOGICAL) {
+                    has_na = true;
+                    break;
+                }
+            }
+            break;
+        }
+        case INTSXP: {
+            auto as_int_vec = INTEGER(vec_sexp);
+            for (i = 0; i < len; ++i) {
+                if (as_int_vec[i] == NA_INTEGER) {
+                    has_na = true;
+                    break;
+                }
+            }
+            break;
+        }
+        case REALSXP: {
+            auto as_real_vec = REAL(vec_sexp);
+            for (i = 0; i < len; ++i) {
+                if (ISNA(as_real_vec[i])) {
+                    has_na = true;
+                    break;
+                }
+            }
+            break;
+        }
+        case CPLXSXP: {
+            auto as_cplx_vec = COMPLEX(vec_sexp);
+            for (i = 0; i < len; ++i) {
+                if (ISNA(as_cplx_vec[i].r) || ISNA(as_cplx_vec[i].i)) {
+                    has_na = true;
+                    break;
+                }
+            }
+            break;
+        }
+        case RAWSXP: {
+            /* there won't be NAs here b/c raws are just raw bytes */
+            break;
+        }
+    }
+
+    if (len == 1) {
+        // scalar
+        // we deal with them separately, just put the length in
+    }
+
+    std::string len_portion = "[" + std::to_string(len) + "]";
+    ret_str.append(len_portion);
+
+    if (!has_na) {
+        // append NA-less tag 
+        ret_str.append("@{NA-free}");
+    }
+
+    return ret_str;
+}
+
+// TODO it might be a data frame?
+std::string list_logic(SEXP list_sxp) {
+
+    // TODO complete data frame
+    if (Rf_isFrame(list_sxp)) {
+        SEXP col_names = Rf_GetColNames(list_sxp);
+        // TODO do we want nrows? types of column elements?
+        return "TODO";
+    }
+
+    std::string ret_str = "list<";
+    std::string last_type = "";
+    std::string new_type = "";
+    int len = LENGTH(list_sxp);
+    for(int i = 0; i < len; ++i) {
+        if (i == 0) {
+            last_type = TYPEOF(VECTOR_ELT(list_sxp, i));
+        } else {
+            new_type = TYPEOF(VECTOR_ELT(list_sxp, i));
+            if (last_type.compare(new_type) != 0) {
+                last_type = "any";
+                break;
+            }
+        }
+    }
+
+    ret_str.append(last_type);
+    ret_str.append(">");
+    std::string len_str = "[" + std::to_string(len) + "]";
+    ret_str.append(len_str);
+    return ret_str;
+}
+
+std::string env_logic(SEXP env_sxp) {
+    std::string ret_str = "environment";
+
+    // TRUE is Rboolean
+    // var_names will be a character vector
+    SEXP var_names = R_lsInternal(env_sxp, TRUE);
+
+    int len = LENGTH(var_names);
+    std::string bindings = "{";
+    for (int i = 0; i < len; ++i) {
+        bindings.append(CHAR(STRING_ELT(var_names, i)));
+        if (i != len - 1) {
+            bindings.append(", ");
+        }
+    }
+    bindings.append("}");
+    ret_str.append(bindings);
+    return ret_str;
+}
+
+/* typr */
+std::string get_type_of_sexp(SEXP thing) {
+    int len = 1;
+    switch (TYPEOF(thing)) {
+        case NILSXP:
+            return "NULL";
+        case SYMSXP:
+            return "symbol";
+        case LISTSXP:
+            // NOT A LIST
+            break;
+        case CLOSXP:
+            return "closure";
+        case ENVSXP:
+            // TODO reflect?
+            break;
+        case PROMSXP:
+            return "unused";
+        case LANGSXP:
+            // ???
+            break;
+        case SPECIALSXP:
+            return "special";
+        case BUILTINSXP:
+            return "builtin";
+        case CHARSXP:
+            // return vector_logic("character", thing);
+            // not actually a character
+            break;
+        case LGLSXP:
+            return vector_logic("logical", thing);
+        case INTSXP:
+            return vector_logic("integer", thing);
+        case REALSXP:
+            return vector_logic("double", thing);
+        case CPLXSXP:
+            return vector_logic("complex", thing);
+        case STRSXP:
+            // actually character
+            return vector_logic("character", thing);
+        case DOTSXP:
+            return "list<any>";
+        case ANYSXP:
+            return "any";
+            break;
+        case VECSXP:
+            return list_logic(thing);
+        case EXPRSXP:
+            return "expression";
+        case BCODESXP:
+            // ??
+            break;
+        case EXTPTRSXP:
+            // ???
+            break;
+        case WEAKREFSXP:
+            // ???
+            break;
+        case RAWSXP:
+            return vector_logic("raw", thing);
+        case S4SXP:
+            // ??
+            break;
+        case NEWSXP:
+            // ???
+            break;
+        case FREESXP:
+            // ?
+            break;
+        case FUNSXP:
+            // ?? will this happen
+            // apparently we dont need this
+            return "function";
+    }
+
+    return "TODO";
+}
+
 char* copy_string(char* destination, const char* source, size_t buffer_size) {
     size_t l = strlen(source);
     if (l >= buffer_size) {

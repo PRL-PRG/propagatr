@@ -104,6 +104,26 @@ void closure_entry(dyntracer_t* dyntracer,
     state.exit_probe(Event::ClosureEntry);
 }
 
+// for typr stuff
+CallTrace deal_with_function_call(Call* function_call, SEXP return_value) {
+    CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
+                                                function_call->get_function_name());
+
+    for (Argument* argument: function_call->get_arguments()) {
+        int param_pos = argument->get_formal_parameter_position();
+        DenotedValue * arg_val = argument->get_denoted_value();
+
+        SEXP raw_obj = arg_val->get_raw_object();
+        
+        // if raw_obj is a promise, this will be recorded as 'unused'
+        trace_for_this_call.add_to_call_trace(param_pos, Type(raw_obj));
+    }
+
+    trace_for_this_call.add_to_call_trace(-1, Type(return_value));
+
+    return trace_for_this_call;
+}
+
 void closure_exit(dyntracer_t* dyntracer,
                   const SEXP call,
                   const SEXP op,
@@ -128,6 +148,8 @@ void closure_exit(dyntracer_t* dyntracer,
     state.add_return_dependency(return_value, fn_id);
     */
 
+    state.deal_with_call_trace(deal_with_function_call(function_call, return_value));
+
     state.get_dependencies().add_return(return_value, function_call->get_function()->get_id());
 
     function_call->set_return_value_type(type_of_sexp(return_value));
@@ -139,6 +161,7 @@ void closure_exit(dyntracer_t* dyntracer,
     state.exit_probe(Event::ClosureExit);
 }
 
+// TODO deal with builtins for propagatr
 void builtin_entry(dyntracer_t* dyntracer,
                   const SEXP call,
                   const SEXP op,
@@ -167,12 +190,15 @@ void builtin_exit(dyntracer_t* dyntracer,
        dyntrace_log_error("Not found matching builtin on stack");
    }
    Call* function_call = exec_ctxt.get_builtin();
+   state.deal_with_call_trace(deal_with_function_call(function_call, return_value));
+
    function_call->set_return_value_type(type_of_sexp(return_value));
    state.notify_caller(function_call);
    state.destroy_call(function_call);
    state.exit_probe(Event::BuiltinExit);
 }
 
+// TODO propagatr do this
 void special_entry(dyntracer_t* dyntracer,
                   const SEXP call,
                   const SEXP op,
@@ -201,6 +227,9 @@ void special_exit(dyntracer_t* dyntracer,
        dyntrace_log_error("Not found matching special object on stack");
    }
    Call* function_call = exec_ctxt.get_special();
+
+   state.deal_with_call_trace(deal_with_function_call(function_call, return_value));
+
    function_call->set_return_value_type(type_of_sexp(return_value));
    state.notify_caller(function_call);
    state.destroy_call(function_call);

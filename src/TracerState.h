@@ -11,6 +11,7 @@
 #include "Function.h"
 #include "sexptypes.h"
 #include "stdlibs.h"
+#include "CallTrace.h"
 
 #include <iostream>
 #include <set>
@@ -297,6 +298,23 @@ public:
         return dependencies_;
     }
 
+    /*
+    *
+            typer stuff!!
+    *
+    */
+
+    void deal_with_call_trace(CallTrace a_trace) {
+        // TODO this
+
+        if (traces_.count(a_trace) == 1) {
+            // its in
+        } else {
+            // its not in yet
+            traces_.insert(std::make_pair(a_trace, a_trace));
+        }
+    }
+
   private:
     ExecutionContextStack stack_;
     const std::string output_dirpath_;
@@ -313,6 +331,13 @@ public:
 
     // this is for propagatr specifically
     DependencyNodeGraph dependencies_;
+
+    // this is for typr
+    // traces_ should have a list of traces, we can look for hash collisions
+    // and call it an already seen trace
+    std::unordered_map<CallTrace, CallTrace, CallTraceHasher> traces_;
+    // ^ is to see if we have already seen the calltrace (in a way that doesnt suck)
+    std::unordered_map<CallTrace, int, CallTraceHasher> counts_;
 
     call_id_t get_next_call_id_() {
         return ++call_id_counter_;
