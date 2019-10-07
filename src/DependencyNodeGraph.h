@@ -58,12 +58,18 @@ public:
     std::stringstream out;
     
     // for each node 
-    // (fn_id, p_pos) : (fn_id, p_pos) - ...
+    // (fn_id, p_pos) : (fn_id, p_pos) - (fn_id, p_pos) - ... - (fn_id, p_pos)
     for ( auto iter = dependencies_.begin(); iter != dependencies_.end(); ++iter) {
       // serialize the node
       out << "(" << iter->first.get_function_id() << ", " << iter->first.get_formal_parameter_position() << "} : ";
 
-      // serialize the edges
+      // TODO serialize the edges
+      for ( auto edge_iter = iter->second.begin(); edge_iter != iter->second.end(); /* ++edge_iter */) {
+        out << "(" << edge_iter->get_function_id() << ", " << edge_iter->get_formal_parameter_position() << "}";
+        if (++edge_iter != iter->second.end()) {
+          out << " - ";
+        }
+      }
 
       out << "\n";
     }

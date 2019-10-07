@@ -74,32 +74,6 @@ void closure_entry(dyntracer_t* dyntracer,
     }
     */
 
-    function_id_t fn_id = function_call->get_function()->get_id();
-
-    for (Argument* argument: function_call->get_arguments()) {
-      int param_pos = argument->get_formal_parameter_position();
-      DenotedValue * arg_val = argument->get_denoted_value();
-
-      SEXP raw_obj = arg_val->get_raw_object();
-
-      if (arg_val->is_promise()) {
-        SEXP val = dyntrace_get_promise_value(raw_obj);
-        // all will get forced, so yeah.
-        while (type_of_sexp(val) == PROMSXP) {
-          val = dyntrace_get_promise_value(val);
-        }
-        if (val != R_UnboundValue) {
-          // its forced
-          state.get_dependencies().add_argument(val, fn_id, param_pos);
-        } else {
-          // don't have to do anything, nothing to do
-        }
-      } else {
-        state.get_dependencies().add_argument(raw_obj, fn_id, param_pos);
-      }
-
-    }
-
     set_dispatch(function_call, dispatch);
 
     state.push_stack(function_call);
@@ -127,20 +101,27 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value) {
     return trace_for_this_call;
 }
 
-CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP return_value) {
+CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP return_value, TracerState* state) {
     CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
                                                 function_call->get_function_name());
 
-    // int arg_len = LENGTH(args);
     int i = 0;
     
     for(SEXP cons = args; cons != R_NilValue; cons = CDR(cons)) {
         SEXP el = CAR(cons);
 
-        trace_for_this_call.add_to_call_trace(i++, Type(el));
+        // build up call trace
+        trace_for_this_call.add_to_call_trace(i, Type(el));
+
+        // dependencies
+        state->get_dependencies().add_argument(el, function_call->get_function()->get_id(), i);
+
+        i++;
     }
 
+    // return value
     trace_for_this_call.add_to_call_trace(-1, Type(return_value));
+    state->get_dependencies().add_argument(return_value, function_call->get_function()->get_id(), -1);
 
     return trace_for_this_call;
 
@@ -169,6 +150,33 @@ void closure_exit(dyntracer_t* dyntracer,
     function_id_t fn_id = function_call->get_function()->get_id();
     state.add_return_dependency(return_value, fn_id);
     */
+
+    function_id_t fn_id = function_call->get_function()->get_id();
+
+    for (Argument* argument: function_call->get_arguments()) {
+      int param_pos = argument->get_formal_parameter_position();
+      DenotedValue * arg_val = argument->get_denoted_value();
+
+      SEXP raw_obj = arg_val->get_raw_object();
+
+      // TODO should arg_val or raw_obj here be swapped?
+      if (arg_val->is_promise()) {
+        SEXP val = dyntrace_get_promise_value(raw_obj);
+        // all will get forced, so yeah.
+        while (type_of_sexp(val) == PROMSXP) {
+          val = dyntrace_get_promise_value(val);
+        }
+        if (val != R_UnboundValue) {
+          // its forced
+          state.get_dependencies().add_argument(val, fn_id, param_pos);
+        } else {
+          // don't have to do anything, nothing to do
+        }
+      } else {
+        state.get_dependencies().add_argument(raw_obj, fn_id, param_pos);
+      }
+
+    }
 
     state.deal_with_call_trace(deal_with_function_call(function_call, return_value));
 
@@ -212,7 +220,9 @@ void builtin_exit(dyntracer_t* dyntracer,
        dyntrace_log_error("Not found matching builtin on stack");
    }
    Call* function_call = exec_ctxt.get_builtin();
-   state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value));
+   state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state));
+
+   // TODO: dependencies
 
    function_call->set_return_value_type(type_of_sexp(return_value));
    state.notify_caller(function_call);
@@ -250,7 +260,7 @@ void special_exit(dyntracer_t* dyntracer,
    }
    Call* function_call = exec_ctxt.get_special();
 
-   state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value));
+   state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state));
 
    function_call->set_return_value_type(type_of_sexp(return_value));
    state.notify_caller(function_call);
