@@ -3,6 +3,9 @@
 
 #include "DependencyNode.h"
 
+#include <sstream> // for serializing
+#include <string>  // for serializing
+
 class DependencyNodeGraph {
 
 public:
@@ -47,6 +50,26 @@ public:
   void remove_value(SEXP value) {
     // dependencies_ will still have the dependencies tracked
     arguments_.erase(value);
+  }
+
+  std::stringstream serialize() {
+    
+    int size_of_dependencies_as_int = dependencies_.size();
+    std::stringstream out;
+    
+    // for each node 
+    // (fn_id, p_pos) : (fn_id, p_pos) - ...
+    for ( auto iter = dependencies_.begin(); iter != dependencies_.end(); ++iter) {
+      // serialize the node
+      out << "(" << iter->first.get_function_id() << ", " << iter->first.get_formal_parameter_position() << "} : ";
+
+      // serialize the edges
+
+      out << "\n";
+    }
+
+    return out;
+
   }
 
 private:

@@ -44,6 +44,9 @@ void dyntrace_exit(dyntracer_t* dyntracer,
 
     state.cleanup(error);
 
+    // serialize??
+    state.serialize_and_output();
+
     /* we do not do start.exit_probe() because the tracer has finished
        executing and we don't need to resume the timer. */
 }
@@ -124,6 +127,25 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value) {
     return trace_for_this_call;
 }
 
+CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP return_value) {
+    CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
+                                                function_call->get_function_name());
+
+    // int arg_len = LENGTH(args);
+    int i = 0;
+    
+    for(SEXP cons = args; cons != R_NilValue; cons = CDR(cons)) {
+        SEXP el = CAR(cons);
+
+        trace_for_this_call.add_to_call_trace(i++, Type(el));
+    }
+
+    trace_for_this_call.add_to_call_trace(-1, Type(return_value));
+
+    return trace_for_this_call;
+
+}
+
 void closure_exit(dyntracer_t* dyntracer,
                   const SEXP call,
                   const SEXP op,
@@ -190,7 +212,7 @@ void builtin_exit(dyntracer_t* dyntracer,
        dyntrace_log_error("Not found matching builtin on stack");
    }
    Call* function_call = exec_ctxt.get_builtin();
-   state.deal_with_call_trace(deal_with_function_call(function_call, return_value));
+   state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value));
 
    function_call->set_return_value_type(type_of_sexp(return_value));
    state.notify_caller(function_call);
@@ -228,7 +250,7 @@ void special_exit(dyntracer_t* dyntracer,
    }
    Call* function_call = exec_ctxt.get_special();
 
-   state.deal_with_call_trace(deal_with_function_call(function_call, return_value));
+   state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value));
 
    function_call->set_return_value_type(type_of_sexp(return_value));
    state.notify_caller(function_call);

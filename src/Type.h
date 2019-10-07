@@ -1,6 +1,8 @@
 #ifndef TYPEDYNTRACER_TYPE_H
 #define TYPEDYNTRACER_TYPE_H
 
+#include "utilities.h"
+
 class Type {
 
     public:
@@ -9,7 +11,7 @@ class Type {
 
     explicit Type(SEXP get_my_type) {
         /* type */
-        top_level_type_ = type_of_sexp(get_my_type);
+        top_level_type_ = get_type_of_sexp(get_my_type);
 
         /* class(es) */ /* TODO is this the right way to do this? */
         // SEXP class_as_charsxp = Rf_S3Class(get_my_type);

@@ -17,6 +17,9 @@
         exit(EXIT_FAILURE);                                                \
     } while (0)
 
+/* getting types */
+std::string get_type_of_sexp(SEXP thing);
+
 int get_file_size(std::ifstream& file);
 
 std::string readfile(std::ifstream& file);

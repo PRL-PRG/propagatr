@@ -15,6 +15,8 @@
 
 #include <iostream>
 #include <set>
+#include <sstream> // for serializing
+#include <string>  // for serializing
 #include <unordered_map>
 
 class TracerState {
@@ -313,6 +315,99 @@ public:
             // its not in yet
             traces_.insert(std::make_pair(a_trace, a_trace));
         }
+    }
+
+    // makes the string "type, {classes}, {attrs}"
+    // volatile here for debugging
+    std::string serialize_for_param_pos(std::unordered_map<int, Type> trace_map, int pos) volatile {
+      Type type = trace_map.at(pos);
+      std::stringstream out;
+
+      // type
+      out << type.get_top_level_type() << ", {";
+
+      // classes
+      std::vector<std::string> classes = type.get_classes();
+      int size_as_int = classes.size();
+      for (int i = 0; i < size_as_int; ++i) {
+        
+        out << classes[i];
+
+        if (i != size_as_int - 1) {
+          out << ", ";
+        } 
+      }
+
+      out << "}, {";
+
+        // attrs
+      std::vector<std::string> attrs = type.get_attr_names();
+      size_as_int = attrs.size();
+      for (int i = 0; i < size_as_int; ++i) {
+        out << attrs[i];
+
+        if (i != size_as_int - 1) {
+          out << ", ";
+        } 
+      }
+
+      out << "}";
+
+      return out.str();
+    }
+
+    std::stringstream serialize_traces_list() {
+
+      // 1. init stringstream
+      std::stringstream out;
+
+      // 2. iterate through keys \in traces_
+      //    print the trace + counts to file
+      for (std::pair<CallTrace, CallTrace> element : traces_) {
+        // what format do we want?
+        // pkg, fun, ret_t, ret_c, ret_a, {p_t, p_c, p_a | p \in num_params}
+        CallTrace el = element.second;
+        std::unordered_map<int, Type> trace_map = el.get_call_trace();
+        out << el.get_package_name() << ", " << el.get_function_name() << ", ";
+
+        // get all (ret is first @ -1)
+        int size_as_int = trace_map.size();
+        for (int i = -1; i < (size_as_int - 1); ++i) {
+          out << serialize_for_param_pos(trace_map, i);
+
+          if (i != size_as_int - 2) {
+            out << ", ";
+          } else {
+            out << "\n";
+          }
+        }
+      }
+      return out;
+    }
+
+    std::stringstream serialize_dependencies() {
+      std::stringstream out;
+
+      // first, print the graph in the following form:
+      out << dependencies_.serialize().rdbuf();
+
+      // then, print the fun_ids mapping to function names and packages
+
+      return out;
+    }
+
+    void serialize_and_output() {
+      std::stringstream traces_out = serialize_traces_list();
+
+      std::ofstream out_file("test_traces.txt");
+      out_file << traces_out.rdbuf();
+      out_file.close();
+
+      std::stringstream dependencies_out = serialize_dependencies();
+      std::ofstream out_file_2("test_dependencies.txt");
+      out_file_2 << dependencies_out.rdbuf();
+      out_file_2.close();
+
     }
 
   private:

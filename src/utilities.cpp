@@ -179,25 +179,22 @@ std::string get_type_of_sexp(SEXP thing) {
             return "symbol";
         case LISTSXP:
             // NOT A LIST
-            break;
+            return "pairlist";
         case CLOSXP:
             return "closure";
         case ENVSXP:
             // TODO reflect?
-            break;
+            return env_logic(thing);
         case PROMSXP:
             return "unused";
         case LANGSXP:
-            // ???
-            break;
+            return "LANGSXP";
         case SPECIALSXP:
             return "special";
         case BUILTINSXP:
             return "builtin";
         case CHARSXP:
-            // return vector_logic("character", thing);
-            // not actually a character
-            break;
+            return "CHARSXP";
         case LGLSXP:
             return vector_logic("logical", thing);
         case INTSXP:
@@ -207,44 +204,34 @@ std::string get_type_of_sexp(SEXP thing) {
         case CPLXSXP:
             return vector_logic("complex", thing);
         case STRSXP:
-            // actually character
             return vector_logic("character", thing);
         case DOTSXP:
             return "list<any>";
         case ANYSXP:
             return "any";
-            break;
         case VECSXP:
             return list_logic(thing);
         case EXPRSXP:
             return "expression";
         case BCODESXP:
-            // ??
-            break;
+            return "BCODESXP";
         case EXTPTRSXP:
-            // ???
-            break;
+            return "EXTPTRSXP";
         case WEAKREFSXP:
-            // ???
-            break;
+            return "WEAKREFSXP";
         case RAWSXP:
             return vector_logic("raw", thing);
         case S4SXP:
-            // ??
-            break;
+            return "S4";
         case NEWSXP:
-            // ???
-            break;
+            return "NEWSXP";
         case FREESXP:
-            // ?
-            break;
+            return "FREESXP";
         case FUNSXP:
-            // ?? will this happen
-            // apparently we dont need this
             return "function";
     }
 
-    return "TODO";
+    return "ERROR?";
 }
 
 char* copy_string(char* destination, const char* source, size_t buffer_size) {
