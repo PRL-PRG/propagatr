@@ -28,6 +28,69 @@ bool file_exists(const std::string& filepath) {
 
 // typr stuff
 
+std::string simple_type_of_value(SEXP val) {
+    switch (TYPEOF(val)) {
+        case NILSXP:
+            return "NULL";
+        case SYMSXP:
+            return "symbol";
+        case LISTSXP:
+            return "pairlist";
+        case CLOSXP:
+            return "closure";
+        case ENVSXP:
+            return "env";
+        case PROMSXP:
+            return "unused";
+        case LANGSXP:
+            return "LANGSXP";
+        case SPECIALSXP:
+            return "special";
+        case BUILTINSXP:
+            return "builtin";
+        case CHARSXP:
+            return "CHARSXP";
+        case LGLSXP:
+            return "logical";
+        case INTSXP:
+            return "integer";
+        case REALSXP:
+            return "double";
+        case CPLXSXP:
+            return "complex";
+        case STRSXP:
+            return "character";
+        case DOTSXP:
+            return "dots";
+        case ANYSXP:
+            return "any";
+        case VECSXP:
+            return "list";
+        case EXPRSXP:
+            return "expression";
+        case BCODESXP:
+            return "BCODESXP";
+        case EXTPTRSXP:
+            return "EXTPTRSXP";
+        case WEAKREFSXP:
+            return "WEAKREFSXP";
+        case RAWSXP:
+            return "raw";
+        case S4SXP:
+            return "S4";
+        case NEWSXP:
+            return "NEWSXP";
+        case FREESXP:
+            return "FREESXP";
+        /*
+        case FUNSXP:
+            return "function";
+        */
+    }
+
+    return "ERROR?";
+}
+
 std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
     int len = LENGTH(vec_sexp);
     bool has_na = false;
@@ -120,21 +183,23 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
 std::string list_logic(SEXP list_sxp) {
 
     // TODO complete data frame
+    /*
     if (Rf_isFrame(list_sxp)) {
-        SEXP col_names = Rf_GetColNames(list_sxp);
+        // SEXP col_names = Rf_GetColNames(list_sxp);
+        // ^ for some reason this makes things take forever
         // TODO do we want nrows? types of column elements?
         return "TODO";
-    }
+    } */
 
     std::string ret_str = "list<";
-    std::string last_type = "";
+    std::string last_type = "empty";
     std::string new_type = "";
     int len = LENGTH(list_sxp);
     for(int i = 0; i < len; ++i) {
         if (i == 0) {
-            last_type = TYPEOF(VECTOR_ELT(list_sxp, i));
+            last_type = simple_type_of_value(VECTOR_ELT(list_sxp, i));
         } else {
-            new_type = TYPEOF(VECTOR_ELT(list_sxp, i));
+            new_type = simple_type_of_value(VECTOR_ELT(list_sxp, i));
             if (last_type.compare(new_type) != 0) {
                 last_type = "any";
                 break;
@@ -152,20 +217,28 @@ std::string list_logic(SEXP list_sxp) {
 std::string env_logic(SEXP env_sxp) {
     std::string ret_str = "environment";
 
-    // TRUE is Rboolean
-    // var_names will be a character vector
-    SEXP var_names = R_lsInternal(env_sxp, TRUE);
+    // these environments are big so we just shorten them
+    if (env_sxp == R_GlobalEnv) {
+        ret_str.append("{global}");
+    } else if (env_sxp == R_BaseEnv || env_sxp == R_BaseNamespace) {
+        ret_str.append("{base}");
+    } else {
+        // TRUE is Rboolean
+        // var_names will be a character vector
+        SEXP var_names = R_lsInternal(env_sxp, TRUE);
 
-    int len = LENGTH(var_names);
-    std::string bindings = "{";
-    for (int i = 0; i < len; ++i) {
-        bindings.append(CHAR(STRING_ELT(var_names, i)));
-        if (i != len - 1) {
-            bindings.append(", ");
+        int len = LENGTH(var_names);
+        std::string bindings = "{";
+        for (int i = 0; i < len; ++i) {
+            bindings.append(CHAR(STRING_ELT(var_names, i)));
+            if (i != len - 1) {
+                bindings.append(", ");
+            }
         }
+        bindings.append("}");
+        ret_str.append(bindings);
     }
-    bindings.append("}");
-    ret_str.append(bindings);
+
     return ret_str;
 }
 
@@ -227,8 +300,10 @@ std::string get_type_of_sexp(SEXP thing) {
             return "NEWSXP";
         case FREESXP:
             return "FREESXP";
+        /*
         case FUNSXP:
             return "function";
+        */
     }
 
     return "ERROR?";

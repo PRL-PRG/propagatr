@@ -2,6 +2,13 @@ R_DYNTRACE_HOME := ../R-dyntrace
 R_DYNTRACE := $(R_DYNTRACE_HOME)/bin/R
 R_CMD_CHECK_OUTPUT_DIRPATH := /tmp
 
+# make sure to run the following somewhere:
+# export R_KEEP_PKG_SOURCE=1
+# export R_ENABLE_JIT=0
+# export R_COMPILE_PKGS=0
+# export R_DISABLE_BYTECODE=1
+# export OMP_NUM_THREADS=1
+
 export R_ENABLE_JIT=3
 export R_COMPILE_PKGS=1
 export R_DISABLE_BYTECODE=0

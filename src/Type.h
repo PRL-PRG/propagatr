@@ -11,6 +11,7 @@ class Type {
 
     explicit Type(SEXP get_my_type) {
         /* type */
+        // check for promises
         top_level_type_ = get_type_of_sexp(get_my_type);
 
         /* class(es) */ /* TODO is this the right way to do this? */
@@ -28,6 +29,9 @@ class Type {
             // attributes are null
         } else {
             SEXP attr_names = getAttrib(attrs_as_sxp, R_NamesSymbol);
+            for (int i = 0; i < LENGTH(attr_names); i++) {
+                attr_names_.push_back(CHAR(STRING_ELT(attr_names, i)));
+            }
         }
     }
 

@@ -9,7 +9,7 @@ class CallTrace {
 
     public:
     explicit CallTrace(std::string pname, std::string fname) :
-    pkg_name_(pname), fun_name_(fname) {}
+    pkg_name_(pname), fun_name_(fname) { }
 
     std::string get_function_name() const {
         return fun_name_;
@@ -27,7 +27,7 @@ class CallTrace {
         pkg_name_ = pname;
     }
 
-    std::unordered_map<int, Type> get_call_trace() const {
+    std::unordered_map<int, Type> & get_call_trace() {
         return call_trace_;
     }
 

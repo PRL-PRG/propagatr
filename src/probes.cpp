@@ -45,6 +45,7 @@ void dyntrace_exit(dyntracer_t* dyntracer,
     state.cleanup(error);
 
     // serialize??
+    // TODO: commenting this out to make sure that serializing data frames isnt the problem
     state.serialize_and_output();
 
     /* we do not do start.exit_probe() because the tracer has finished
@@ -91,9 +92,37 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value) {
         DenotedValue * arg_val = argument->get_denoted_value();
 
         SEXP raw_obj = arg_val->get_raw_object();
-        
+
+        // to get types, if the top level is a promise... its a promise!
+        // TODO: don't go all the way in, look at the expression slot of needed
+        if (arg_val->is_promise()) {
+            
+            SEXP val = dyntrace_get_promise_value(raw_obj);
+            SEXP old_expr = dyntrace_get_promise_expression(raw_obj);
+            // all will get forced, so yeah.
+            while (type_of_sexp(val) == PROMSXP) {
+            // while (TYPEOF(val) == PROMSXP) {
+                old_expr = val;
+                val = dyntrace_get_promise_value(val);
+            }
+
+            if (val != R_UnboundValue) {
+                // its forced
+                // TODO this is always a symbol
+                std::cout << "nothing was passed and it wasn't used.\n";
+                trace_for_this_call.add_to_call_trace(param_pos, Type(old_expr));
+            } else {
+                // TODO put the unevaled tag here
+                std::cout << "something was passed and it wasn't used.\n";
+                trace_for_this_call.add_to_call_trace(param_pos, Type(old_expr));
+            }
+        } else {
+            std::cout << "normal argument.\n";
+            trace_for_this_call.add_to_call_trace(param_pos, Type(raw_obj));
+        }
+
         // if raw_obj is a promise, this will be recorded as 'unused'
-        trace_for_this_call.add_to_call_trace(param_pos, Type(raw_obj));
+        // trace_for_this_call.add_to_call_trace(param_pos, Type(raw_obj));
     }
 
     trace_for_this_call.add_to_call_trace(-1, Type(return_value));
@@ -164,6 +193,7 @@ void closure_exit(dyntracer_t* dyntracer,
         SEXP val = dyntrace_get_promise_value(raw_obj);
         // all will get forced, so yeah.
         while (type_of_sexp(val) == PROMSXP) {
+        // while (TYPEOF(val) == PROMSXP) {
           val = dyntrace_get_promise_value(val);
         }
         if (val != R_UnboundValue) {
@@ -178,6 +208,7 @@ void closure_exit(dyntracer_t* dyntracer,
 
     }
 
+    // TODO commenting this out to see if this is the source of the slowdowns
     state.deal_with_call_trace(deal_with_function_call(function_call, return_value));
 
     state.get_dependencies().add_return(return_value, function_call->get_function()->get_id());
