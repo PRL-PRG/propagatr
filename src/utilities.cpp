@@ -173,7 +173,12 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
 
     if (!has_na) {
         // append NA-less tag 
-        ret_str.append("@{NA-free}");
+
+        ret_str.append("@NA-free");
+    } else {
+        // has NA, treat as NULL
+        if (len == 1)
+            ret_str = "NULL";
     }
 
     return ret_str;
@@ -182,35 +187,79 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
 // TODO it might be a data frame?
 std::string list_logic(SEXP list_sxp) {
 
-    // TODO complete data frame
-    /*
+    
     if (Rf_isFrame(list_sxp)) {
-        // SEXP col_names = Rf_GetColNames(list_sxp);
-        // ^ for some reason this makes things take forever
-        // TODO do we want nrows? types of column elements?
-        return "TODO";
-    } */
+        SEXP col_names = getAttrib(list_sxp, R_NamesSymbol);
+        int num_cols = Rf_ncols(list_sxp);
+        int num_rows = Rf_nrows(list_sxp);
+
+        std::string ret_df = "data.frame";
+        ret_df.append("[" + std::to_string(num_rows) + ", " + std::to_string(num_cols) + "]");
+        
+        // TODO col names?
+        int len = LENGTH(col_names);
+        if (len > 0) {
+            ret_df.append("@col-names[");
+            for (int i = 0; i < len; ++i) {
+                ret_df.append(CHAR(STRING_ELT(col_names, i)));
+                if (i != len - 1)
+                    ret_df.append("~");
+            }
+            ret_df.append("]");
+        }
+
+        return ret_df;
+    }
+
+    bool has_null = false;
 
     std::string ret_str = "list<";
     std::string last_type = "empty";
     std::string new_type = "";
     int len = LENGTH(list_sxp);
+
+    // list names
+    SEXP names = getAttrib(list_sxp, R_NamesSymbol);
+    std::string names_tag = "@names[";
+
     for(int i = 0; i < len; ++i) {
-        if (i == 0) {
-            last_type = simple_type_of_value(VECTOR_ELT(list_sxp, i));
-        } else {
-            new_type = simple_type_of_value(VECTOR_ELT(list_sxp, i));
-            if (last_type.compare(new_type) != 0) {
-                last_type = "any";
-                break;
+        SEXP elt = VECTOR_ELT(list_sxp, i);
+
+        if (last_type.compare("any") != 0) {
+            if (i == 0) {
+                last_type = simple_type_of_value(elt);
+            } else {
+                new_type = simple_type_of_value(elt);
+                if (last_type.compare(new_type) != 0) {
+                    last_type = "any";
+                }
             }
+        } // no else
+
+        if (names != R_NilValue) {
+            names_tag.append(CHAR(VECTOR_ELT(names, i)));
+            if (i != len - 1)
+                names_tag.append(",");
+            else 
+                names_tag.append("]");
         }
+
+        if (elt == R_NilValue)
+            has_null = true;
     }
 
     ret_str.append(last_type);
     ret_str.append(">");
     std::string len_str = "[" + std::to_string(len) + "]";
     ret_str.append(len_str);
+
+    if (names != R_NilValue)
+        ret_str.append(names_tag);
+
+    if (!has_null) {
+        ret_str.append("@NULL-free");
+    }
+
     return ret_str;
 }
 
@@ -256,8 +305,9 @@ std::string get_type_of_sexp(SEXP thing) {
         case CLOSXP:
             return "closure";
         case ENVSXP:
-            // TODO reflect?
+            // TODO replace this when ready
             return env_logic(thing);
+            // return "environment";
         case PROMSXP:
             return "unused";
         case LANGSXP:

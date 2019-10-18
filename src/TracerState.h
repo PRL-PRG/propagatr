@@ -323,7 +323,18 @@ public:
       std::stringstream out;
 
       // type
-      out << type.get_top_level_type() << ", {";
+      out << type.get_top_level_type();
+
+      // tags
+      // TODO this
+      std::vector<std::string> * tags = type.get_tags();
+      if (tags->size() != 0) {
+        for (auto it = tags->begin(); it != tags->end(); ++it) {
+          out << "@" << * it;
+        }
+      }
+      
+      out << ", {";
 
       // classes
       std::vector<std::string> classes = type.get_classes();
@@ -368,7 +379,7 @@ public:
         // pkg, fun, ret_t, ret_c, ret_a, {p_t, p_c, p_a | p \in num_params}
         CallTrace el = element.second;
         std::unordered_map<int, Type> trace_map = el.get_call_trace();
-        out << el.get_package_name() << ", " << el.get_function_name() << ", ";
+        out << el.get_package_name() << ", " << el.get_function_name() << ", " << el.get_fn_id() << ", ";
 
         std::vector<int> keys;
         keys.reserve(trace_map.size());

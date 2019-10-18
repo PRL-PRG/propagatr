@@ -8,8 +8,8 @@
 class CallTrace {
 
     public:
-    explicit CallTrace(std::string pname, std::string fname) :
-    pkg_name_(pname), fun_name_(fname) { }
+    explicit CallTrace(std::string pname, std::string fname, function_id_t fn_id) :
+    pkg_name_(pname), fun_name_(fname), fn_id_(fn_id) { }
 
     std::string get_function_name() const {
         return fun_name_;
@@ -25,6 +25,14 @@ class CallTrace {
 
     void set_package_name(std::string pname) {
         pkg_name_ = pname;
+    }
+
+    function_id_t get_fn_id() {
+        return fn_id_;
+    }
+
+    void set_fn_id(function_id_t fn_id) {
+        fn_id_ = fn_id;
     }
 
     std::unordered_map<int, Type> & get_call_trace() {
@@ -50,7 +58,8 @@ class CallTrace {
 
     std::size_t compute_hash() const {
         size_t the_hash = ((std::hash<std::string>()(fun_name_)
-                           ^ (std::hash<std::string>()(pkg_name_) << 1)) >> 1);
+                           ^ (std::hash<std::string>()(pkg_name_) << 1)) >> 1)
+                           ^ (std::hash<std::string>()(fn_id_) << 1) >> 1;
         
         // need to do a commutative operation cause we arent guaranteed the order here
         for (auto i = call_trace_.begin(); i != call_trace_.end(); ++i) {
@@ -65,6 +74,7 @@ class CallTrace {
     private:
     std::string pkg_name_;
     std::string fun_name_;
+    function_id_t fn_id_;
     std::unordered_map<int, Type> call_trace_;
 
 };

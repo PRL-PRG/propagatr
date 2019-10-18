@@ -47,7 +47,6 @@ dyntrace_types <- function( expr,
     result
 }
 
-
 write_data_table <- function(data_table,
                              filepath,
                              truncate = FALSE,

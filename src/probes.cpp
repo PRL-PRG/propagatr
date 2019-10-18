@@ -83,15 +83,17 @@ void closure_entry(dyntracer_t* dyntracer,
 }
 
 // for typr stuff
-CallTrace deal_with_function_call(Call* function_call, SEXP return_value) {
+CallTrace deal_with_function_call(Call* function_call, SEXP return_value, TracerState* state) {
     CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
-                                                function_call->get_function_name());
+                                                function_call->get_function_name(),
+                                                function_call->get_function()->get_id());
 
     for (Argument* argument: function_call->get_arguments()) {
         int param_pos = argument->get_formal_parameter_position();
         DenotedValue * arg_val = argument->get_denoted_value();
 
         SEXP raw_obj = arg_val->get_raw_object();
+        std::vector<std::string> tags;
 
         // to get types, if the top level is a promise... its a promise!
         // TODO: don't go all the way in, look at the expression slot of needed
@@ -102,37 +104,59 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value) {
             // all will get forced, so yeah.
             while (type_of_sexp(val) == PROMSXP) {
             // while (TYPEOF(val) == PROMSXP) {
-                old_expr = val;
+                old_expr = dyntrace_get_promise_expression(val);
                 val = dyntrace_get_promise_value(val);
             }
 
+            auto the_type = type_of_sexp(val);
+
+            // TODO test this with real promises
             if (val != R_UnboundValue) {
-                // its forced
-                // TODO this is always a symbol
-                std::cout << "nothing was passed and it wasn't used.\n";
-                trace_for_this_call.add_to_call_trace(param_pos, Type(old_expr));
+                // std::cout << param_pos << ": something was passed and it was used.\n";
+
+                if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                    // put tag with the function id
+                    tags.push_back("fn-id:" + state->lookup_function(val)->get_id());
+                }
+
+                trace_for_this_call.add_to_call_trace(param_pos, Type(val, tags));
             } else {
-                // TODO put the unevaled tag here
-                std::cout << "something was passed and it wasn't used.\n";
-                trace_for_this_call.add_to_call_trace(param_pos, Type(old_expr));
+                // std::cout << param_pos << ": passed and not used.\n";
+
+                if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                    // put tag with the function id
+                    tags.push_back("fn-id:" + state->lookup_function(val)->get_id());
+                }
+
+                tags.push_back("missing");
+
+                trace_for_this_call.add_to_call_trace(param_pos, Type(old_expr, tags));
             }
         } else {
-            std::cout << "normal argument.\n";
-            trace_for_this_call.add_to_call_trace(param_pos, Type(raw_obj));
+            // std::cout << param_pos << ": nothing was passed.\n";
+            trace_for_this_call.add_to_call_trace(param_pos, Type(R_MissingArg));
         }
 
         // if raw_obj is a promise, this will be recorded as 'unused'
         // trace_for_this_call.add_to_call_trace(param_pos, Type(raw_obj));
     }
 
-    trace_for_this_call.add_to_call_trace(-1, Type(return_value));
+    auto the_type = type_of_sexp(return_value);
+    std::vector<std::string> tags;
+    if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+        // put tag with the function id
+        tags.push_back("fn-id:" + state->lookup_function(return_value)->get_id());
+    }
+
+    trace_for_this_call.add_to_call_trace(-1, Type(return_value, tags));
 
     return trace_for_this_call;
 }
 
 CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP return_value, TracerState* state) {
     CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
-                                                function_call->get_function_name());
+                                                function_call->get_function_name(),
+                                                function_call->get_function()->get_id());
 
     int i = 0;
     
@@ -209,7 +233,7 @@ void closure_exit(dyntracer_t* dyntracer,
     }
 
     // TODO commenting this out to see if this is the source of the slowdowns
-    state.deal_with_call_trace(deal_with_function_call(function_call, return_value));
+    state.deal_with_call_trace(deal_with_function_call(function_call, return_value, &state));
 
     state.get_dependencies().add_return(return_value, function_call->get_function()->get_id());
 
