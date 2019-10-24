@@ -4,6 +4,45 @@
 
 #include <algorithm>
 
+int mkdir_p(const char *path, mode_t mode)
+{
+    /* Adapted from http://stackoverflow.com/a/2336245/119527 */
+    const size_t len = strlen(path);
+    char _path[PATH_MAX];
+    char *p; 
+
+    errno = 0;
+
+    /* Copy string so its mutable */
+    if (len > sizeof(_path)-1) {
+        errno = ENAMETOOLONG;
+        return -1; 
+    }   
+    strcpy(_path, path);
+
+    /* Iterate the string */
+    for (p = _path + 1; *p; p++) {
+        if (*p == '/') {
+            /* Temporarily truncate */
+            *p = '\0';
+
+            if (mkdir(_path, mode) != 0) {
+                if (errno != EEXIST)
+                    return -1; 
+            }
+
+            *p = '/';
+        }
+    }   
+
+    if (mkdir(_path, mode) != 0) {
+        if (errno != EEXIST)
+            return -1; 
+    }   
+
+    return 0;
+}
+
 int get_file_size(std::ifstream& file) {
     int position = file.tellg();
     file.seekg(0, std::ios_base::end);
@@ -239,7 +278,7 @@ std::string list_logic(SEXP list_sxp) {
         if (names != R_NilValue) {
             names_tag.append(CHAR(VECTOR_ELT(names, i)));
             if (i != len - 1)
-                names_tag.append(",");
+                names_tag.append("~");
             else 
                 names_tag.append("]");
         }
@@ -281,7 +320,7 @@ std::string env_logic(SEXP env_sxp) {
         for (int i = 0; i < len; ++i) {
             bindings.append(CHAR(STRING_ELT(var_names, i)));
             if (i != len - 1) {
-                bindings.append(", ");
+                bindings.append("~");
             }
         }
         bindings.append("}");

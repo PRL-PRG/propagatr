@@ -8,6 +8,11 @@
 #include <openssl/evp.h>
 #include <type_traits>
 
+#include <sys/stat.h>
+#include <errno.h>
+
+int mkdir_p(const char *path, mode_t mode);
+
 #define failwith(format, ...) \
     failwith_impl(__FILE__, __LINE__, format, __VA_ARGS__)
 

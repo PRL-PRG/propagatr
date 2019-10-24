@@ -17,6 +17,9 @@
 #include <set>
 #include <sstream> // for serializing
 #include <string>  // for serializing
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include <unordered_map>
 
 class TracerState {
@@ -69,18 +72,20 @@ public:
     execution_resume_time_ = std::chrono::high_resolution_clock::now();
   }
 
-  void initialize() const { serialize_configuration_(); }
+  void initialize() const { 
+    serialize_configuration_();
+  }
 
   std::unordered_map<SEXP, DenotedValue *> promises_;
   denoted_value_id_t denoted_value_id_counter_;
 
   ExecutionContextStack &get_stack_() { return stack_; }
 
-  TracerState(const std::string &output_dirpath, bool verbose, bool truncate,
+  TracerState(const std::string &output_dirpath, const std::string &analyzed_file_name, bool verbose, bool truncate,
               bool binary, int compression_level)
-      : output_dirpath_(output_dirpath), verbose_(verbose), truncate_(truncate),
+      : output_dirpath_(output_dirpath), analyzed_file_name_(analyzed_file_name), verbose_(verbose), truncate_(truncate),
         binary_(binary), compression_level_(compression_level), timestamp_(0),
-        event_counter_(to_underlying(Event::COUNT), 0) {}
+        event_counter_(to_underlying(Event::COUNT), 0) {  }
 
   Function *lookup_function(const SEXP op) {
     Function *function = nullptr;
@@ -167,7 +172,9 @@ public:
     get_stack_().push(context);
   }
 
-  void cleanup(int error) {for (auto const& binding: promises_) {
+  void cleanup(int error) {
+        
+        for (auto const& binding: promises_) {
             destroy_promise(binding.second);
         }
 
@@ -309,11 +316,14 @@ public:
     void deal_with_call_trace(CallTrace a_trace) {
         // TODO this
 
+        // TODO efficiency here
         if (traces_.count(a_trace) == 1) {
             // its in
+            counts_.insert_or_assign(a_trace, counts_.at(a_trace) + 1);
         } else {
             // its not in yet
             traces_.insert(std::make_pair(a_trace, a_trace));
+            counts_.insert(std::pair<CallTrace, int>(a_trace, 1));
         }
     }
 
@@ -370,7 +380,18 @@ public:
 
       // 1. init stringstream
       std::stringstream out;
-      std::ofstream out_file("test_traces.txt");
+
+      // make directories - this always runs before writing dependencies
+      // TODO: ensure results directory exists or make
+      struct stat info;
+      if (stat(output_dirpath_.c_str(), &info) != 0) {
+        // DNE, create
+        mkdir_p(output_dirpath_.c_str(), S_IRWXU);
+      } else {
+        // exists, nothing to do
+      }
+
+      std::ofstream out_file(output_dirpath_ + "/traces_" + analyzed_file_name_ + ".txt");
 
       // 2. iterate through keys \in traces_
       //    print the trace + counts to file
@@ -379,7 +400,7 @@ public:
         // pkg, fun, ret_t, ret_c, ret_a, {p_t, p_c, p_a | p \in num_params}
         CallTrace el = element.second;
         std::unordered_map<int, Type> trace_map = el.get_call_trace();
-        out << el.get_package_name() << ", " << el.get_function_name() << ", " << el.get_fn_id() << ", ";
+        out << el.get_package_name() << ", " << el.get_function_name() << ", " << el.get_fn_id() << ", " << counts_[el] << ", ";
 
         std::vector<int> keys;
         keys.reserve(trace_map.size());
@@ -443,7 +464,7 @@ public:
       // first, print the graph in the following form:
       out << dependencies_.serialize().rdbuf();
 
-      std::ofstream out_file_2("test_dependencies.txt");
+      std::ofstream out_file_2(output_dirpath_ + "/dependency_graph_" + analyzed_file_name_ + ".txt");
       out_file_2 << out.rdbuf();
       out_file_2.close();
 
@@ -451,14 +472,24 @@ public:
     }
 
     void serialize_and_output() {
+      
+      std::cout << "begin: serialize traces...\n\n";
+
       serialize_traces_list();
 
+      std::cout << "begin: serialize dependencies...\n\n";
+
       serialize_dependencies();
+
+      std::cout << "end: serialize...\n\n";
     }
+
+
 
   private:
     ExecutionContextStack stack_;
     const std::string output_dirpath_;
+    const std::string analyzed_file_name_;
     gc_cycle_t gc_cycle_;
     const bool verbose_;
     const bool truncate_;

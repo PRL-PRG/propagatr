@@ -45,7 +45,6 @@ void dyntrace_exit(dyntracer_t* dyntracer,
     state.cleanup(error);
 
     // serialize??
-    // TODO: commenting this out to make sure that serializing data frames isnt the problem
     state.serialize_and_output();
 
     /* we do not do start.exit_probe() because the tracer has finished
@@ -199,11 +198,6 @@ void closure_exit(dyntracer_t* dyntracer,
 
     Call* function_call = exec_ctxt.get_closure();
 
-    /*
-    function_id_t fn_id = function_call->get_function()->get_id();
-    state.add_return_dependency(return_value, fn_id);
-    */
-
     function_id_t fn_id = function_call->get_function()->get_id();
 
     for (Argument* argument: function_call->get_arguments()) {
@@ -212,7 +206,6 @@ void closure_exit(dyntracer_t* dyntracer,
 
       SEXP raw_obj = arg_val->get_raw_object();
 
-      // TODO should arg_val or raw_obj here be swapped?
       if (arg_val->is_promise()) {
         SEXP val = dyntrace_get_promise_value(raw_obj);
         // all will get forced, so yeah.
@@ -232,7 +225,6 @@ void closure_exit(dyntracer_t* dyntracer,
 
     }
 
-    // TODO commenting this out to see if this is the source of the slowdowns
     state.deal_with_call_trace(deal_with_function_call(function_call, return_value, &state));
 
     state.get_dependencies().add_return(return_value, function_call->get_function()->get_id());
@@ -246,7 +238,6 @@ void closure_exit(dyntracer_t* dyntracer,
     state.exit_probe(Event::ClosureExit);
 }
 
-// TODO deal with builtins for propagatr
 void builtin_entry(dyntracer_t* dyntracer,
                   const SEXP call,
                   const SEXP op,
@@ -268,24 +259,21 @@ void builtin_exit(dyntracer_t* dyntracer,
                  const SEXP rho,
                  const dyntrace_dispatch_t dispatch,
                  const SEXP return_value) {
-   TracerState& state = tracer_state(dyntracer);
-   state.enter_probe(Event::BuiltinExit);
-   ExecutionContext exec_ctxt = state.pop_stack();
-   if (!exec_ctxt.is_builtin()) {
-       dyntrace_log_error("Not found matching builtin on stack");
-   }
-   Call* function_call = exec_ctxt.get_builtin();
-   state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state));
+    TracerState& state = tracer_state(dyntracer);
+    state.enter_probe(Event::BuiltinExit);
+    ExecutionContext exec_ctxt = state.pop_stack();
+    if (!exec_ctxt.is_builtin()) {
+        dyntrace_log_error("Not found matching builtin on stack");
+    }
+    Call* function_call = exec_ctxt.get_builtin();
+    state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state));
 
-   // TODO: dependencies
-
-   function_call->set_return_value_type(type_of_sexp(return_value));
-   state.notify_caller(function_call);
-   state.destroy_call(function_call);
-   state.exit_probe(Event::BuiltinExit);
+    function_call->set_return_value_type(type_of_sexp(return_value));
+    state.notify_caller(function_call);
+    state.destroy_call(function_call);
+    state.exit_probe(Event::BuiltinExit);
 }
 
-// TODO propagatr do this
 void special_entry(dyntracer_t* dyntracer,
                   const SEXP call,
                   const SEXP op,
@@ -307,20 +295,19 @@ void special_exit(dyntracer_t* dyntracer,
                  const SEXP rho,
                  const dyntrace_dispatch_t dispatch,
                  const SEXP return_value) {
-   TracerState& state = tracer_state(dyntracer);
-   state.enter_probe(Event::SpecialExit);
-   ExecutionContext exec_ctxt = state.pop_stack();
-   if (!exec_ctxt.is_special()) {
-       dyntrace_log_error("Not found matching special object on stack");
-   }
-   Call* function_call = exec_ctxt.get_special();
+    TracerState& state = tracer_state(dyntracer);
+    state.enter_probe(Event::SpecialExit);
+    ExecutionContext exec_ctxt = state.pop_stack();
+    if (!exec_ctxt.is_special()) {
+        dyntrace_log_error("Not found matching special object on stack");
+    }
+    Call* function_call = exec_ctxt.get_special();
+    state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state));
 
-   state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state));
-
-   function_call->set_return_value_type(type_of_sexp(return_value));
-   state.notify_caller(function_call);
-   state.destroy_call(function_call);
-   state.exit_probe(Event::SpecialExit);
+    function_call->set_return_value_type(type_of_sexp(return_value));
+    state.notify_caller(function_call);
+    state.destroy_call(function_call);
+    state.exit_probe(Event::SpecialExit);
 }
 
 

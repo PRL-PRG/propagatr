@@ -2,20 +2,34 @@
 
 #include <Rdyntrace.h>
 
+#include <csignal>
+
 #include "probes.h"
 
 extern "C" {
 
+dyntracer_t* dyntracer_;
+
+void handleSignal(int signum) {
+    if (signum == SIGTERM) {
+        (static_cast<TracerState*>(dyntracer_->state))->serialize_and_output();
+    }
+}
+
 SEXP create_dyntracer(SEXP output_dirpath,
+                      SEXP analyzed_file_name,
                       SEXP verbose,
                       SEXP truncate,
                       SEXP binary,
                       SEXP compression_level) {
     void* state = new TracerState(sexp_to_string(output_dirpath),
+                                  sexp_to_string(analyzed_file_name),
                                   sexp_to_bool(verbose),
                                   sexp_to_bool(truncate),
                                   sexp_to_bool(binary),
                                   sexp_to_int(compression_level));
+
+    std::cout << "creating dyntracer, and tracing...\n\n";
 
     /* calloc initializes the memory to zero. This ensures that probes not
        attached will be NULL. Replacing calloc with malloc will cause
@@ -67,6 +81,9 @@ SEXP create_dyntracer(SEXP output_dirpath,
         environment_context_sensitive_promise_eval_exit;
     dyntracer->probe_substitute_call = substitute_call;
     */
+    dyntracer_ = dyntracer;
+
+    signal(SIGTERM, handleSignal);
 
     return dyntracer_to_sexp(dyntracer, "dyntracer.promise");
 }

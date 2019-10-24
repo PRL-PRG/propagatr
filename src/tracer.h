@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 SEXP create_dyntracer(SEXP output_dirpath,
+                      SEXP analyzed_file_name,
                       SEXP verbose,
                       SEXP truncate,
                       SEXP binary,

@@ -1,1 +1,4 @@
 *.tar.gz
+test_dependencies.txt
+test_traces.txt
+

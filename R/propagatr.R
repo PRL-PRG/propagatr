@@ -1,4 +1,5 @@
 create_dyntracer <- function(output_dirpath,
+                             analyzed_file_name = "",
                              verbose = FALSE,
                              truncate = TRUE,
                              binary = FALSE,
@@ -8,6 +9,7 @@ create_dyntracer <- function(output_dirpath,
 
     .Call(C_create_dyntracer,
           output_dirpath,
+          analyzed_file_name,
           verbose,
           truncate,
           binary,
@@ -22,17 +24,21 @@ destroy_dyntracer <- function(dyntracer) {
 # expr: program to trace
 # output_dir: where to put the data files
 dyntrace_types <- function( expr,
-                            output_dirpath,
+                            output_dirpath = "./results",
+                            analyzed_file_name = "test",
                             verbose = FALSE,
                             truncate = TRUE,
                             binary = FALSE,
-                            compression_level = 0) {
+                            compression_level = 0,
+                            debug = F) {
 
-    write(as.character(Sys.time()), file.path(output_dirpath, "BEGIN"))
+    # if (debug)
+    #     write(as.character(Sys.time()), file.path(output_dirpath, "BEGIN"))
 
     compression_level <- as.integer(compression_level)
 
     dyntracer <- create_dyntracer(output_dirpath,
+                                  analyzed_file_name,
                                   verbose,
                                   truncate,
                                   binary,
@@ -42,7 +48,8 @@ dyntrace_types <- function( expr,
 
     destroy_dyntracer(dyntracer)
 
-    write(as.character(Sys.time()), file.path(output_dirpath, "FINISH"))
+    # if (debug)
+    #     write(as.character(Sys.time()), file.path(output_dirpath, "FINISH"))
 
     result
 }
