@@ -141,7 +141,7 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
         int n_row = Rf_nrows(vec_sexp);
         int n_col = Rf_ncols(vec_sexp);
 
-        ret_str.append("[" + std::to_string(n_row) + ", " + std::to_string(n_col) + "]");
+        ret_str.append("[" + std::to_string(n_row) + "-" + std::to_string(n_col) + "]");
 
         return ret_str;
     }
@@ -233,7 +233,7 @@ std::string list_logic(SEXP list_sxp) {
         int num_rows = Rf_nrows(list_sxp);
 
         std::string ret_df = "data.frame";
-        ret_df.append("[" + std::to_string(num_rows) + ", " + std::to_string(num_cols) + "]");
+        ret_df.append("[" + std::to_string(num_rows) + "-" + std::to_string(num_cols) + "]");
         
         // TODO col names?
         int len = LENGTH(col_names);
