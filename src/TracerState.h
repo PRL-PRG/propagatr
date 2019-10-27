@@ -354,7 +354,7 @@ public:
         out << classes[i];
 
         if (i != size_as_int - 1) {
-          out << ", ";
+          out << "-";
         } 
       }
 
@@ -367,7 +367,7 @@ public:
         out << attrs[i];
 
         if (i != size_as_int - 1) {
-          out << ", ";
+          out << "-";
         } 
       }
 
