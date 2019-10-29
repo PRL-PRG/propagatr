@@ -115,7 +115,7 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, Tracer
 
                 if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
                     // put tag with the function id
-                    tags.push_back("fn-id:" + state->lookup_function(val)->get_id());
+                    tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
                 }
 
                 trace_for_this_call.add_to_call_trace(param_pos, Type(val, tags));
@@ -124,7 +124,7 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, Tracer
 
                 if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
                     // put tag with the function id
-                    tags.push_back("fn-id:" + state->lookup_function(val)->get_id());
+                    tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
                 }
 
                 tags.push_back("missing");
@@ -144,7 +144,7 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, Tracer
     std::vector<std::string> tags;
     if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
         // put tag with the function id
-        tags.push_back("fn-id:" + state->lookup_function(return_value)->get_id());
+        tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
     }
 
     trace_for_this_call.add_to_call_trace(-1, Type(return_value, tags));

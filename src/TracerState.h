@@ -314,9 +314,6 @@ public:
     */
 
     void deal_with_call_trace(CallTrace a_trace) {
-        // TODO this
-
-        // TODO efficiency here
         if (traces_.count(a_trace) == 1) {
             // its in
             counts_.insert_or_assign(a_trace, counts_.at(a_trace) + 1);
@@ -344,7 +341,7 @@ public:
         }
       }
       
-      out << ", {";
+      out << ",{";
 
       // classes
       std::vector<std::string> classes = type.get_classes();
@@ -358,7 +355,7 @@ public:
         } 
       }
 
-      out << "}, {";
+      out << "},{";
 
         // attrs
       std::vector<std::string> attrs = type.get_attr_names();
@@ -393,6 +390,8 @@ public:
 
       std::ofstream out_file(output_dirpath_ + "/traces_" + analyzed_file_name_ + ".txt");
 
+      int max_of_max = 0;
+
       // 2. iterate through keys \in traces_
       //    print the trace + counts to file
       for (std::pair<CallTrace, CallTrace> element : traces_) {
@@ -400,7 +399,7 @@ public:
         // pkg, fun, ret_t, ret_c, ret_a, {p_t, p_c, p_a | p \in num_params}
         CallTrace el = element.second;
         std::unordered_map<int, Type> trace_map = el.get_call_trace();
-        out << el.get_package_name() << ", " << el.get_function_name() << ", " << el.get_fn_id() << ", " << counts_[el] << ", ";
+        out << el.get_package_name() << "," << el.get_function_name() << "," << el.get_fn_id() << "," << counts_[el] << ",";
 
         std::vector<int> keys;
         keys.reserve(trace_map.size());
@@ -408,24 +407,26 @@ public:
           keys.push_back(kv.first);
         }
 
-        int max = keys[0];
+        int max_ = keys[0];
         for (int v : keys) {
-          if (max < v) 
-            max = v;
+          if (max_ < v) 
+            max_ = v;
         }
 
-        for (int i = -1; i <= max; ++i) {
+        max_of_max = fmax(max_, max_of_max);
+
+        for (int i = -1; i <= max_; ++i) {
           if (std::find(keys.begin(), keys.end(), i) != keys.end()) {
             // found
             Type type_to_serialize = trace_map.at(i);
             out << serialize_for_param_pos(type_to_serialize);
           } else {
             // put nothing
-            out << "DNE, {}, {}";
+            out << "DNE,{},{}";
           }
 
-          if (i != max) {
-              out << ", ";
+          if (i != max_) {
+              out << ",";
             } else {
               out << "\n";
             }
@@ -450,11 +451,26 @@ public:
         */
 
         // write to file and empty
-        out_file << out.rdbuf();
-        out.clear();
+        // TODO TODO TODO do we want to do this??
+        // or write incrementally...
+        // will these files ever get so big
+        // out_file << out.rdbuf();
+        // out.clear();
       }
       
+      // generate the header, and TODO write it to the beginning of the file...
+      // might involve having to copy the file
+
+      int max_num_of_args = max_of_max;
+      std::string init_header_string = "package,fun_name,fun_id,count,arg_t_r,arg_c_r,arg_a_r";
+      for (int i = 0; i <= max_num_of_args; ++i) {
+        std::string elt = ",arg_t" + std::to_string(i) + ",arg_c" + std::to_string(i) + ",arg_a" + std::to_string(i);
+        init_header_string.append(elt);
+      }
+
       // close file when finished
+      out_file << init_header_string << "\n";
+      out_file << out.rdbuf();
       out_file.close();
     }
 
