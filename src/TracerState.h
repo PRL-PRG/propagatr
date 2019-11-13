@@ -399,7 +399,7 @@ public:
         // pkg, fun, ret_t, ret_c, ret_a, {p_t, p_c, p_a | p \in num_params}
         CallTrace el = element.second;
         std::unordered_map<int, Type> trace_map = el.get_call_trace();
-        out << el.get_package_name() << "," << el.get_function_name() << "," << el.get_fn_id() << "," << counts_[el] << ",";
+        out << el.get_package_name() << "," << el.get_function_name() << "," << el.get_fn_id() << "," << el.compute_hash() << "," << counts_[el] << ",";
 
         std::vector<int> keys;
         keys.reserve(trace_map.size());
@@ -462,7 +462,7 @@ public:
       // might involve having to copy the file
 
       int max_num_of_args = max_of_max;
-      std::string init_header_string = "package,fun_name,fun_id,count,arg_t_r,arg_c_r,arg_a_r";
+      std::string init_header_string = "package,fun_name,fun_id,trace_hash,count,arg_t_r,arg_c_r,arg_a_r";
       for (int i = 0; i <= max_num_of_args; ++i) {
         std::string elt = ",arg_t" + std::to_string(i) + ",arg_c" + std::to_string(i) + ",arg_a" + std::to_string(i);
         init_header_string.append(elt);

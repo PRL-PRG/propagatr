@@ -173,7 +173,7 @@ CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP ret
 
     // return value
     trace_for_this_call.add_to_call_trace(-1, Type(return_value));
-    state->get_dependencies().add_argument(return_value, function_call->get_function()->get_id(), -1);
+    state->get_dependencies().add_argument(return_value, function_call->get_function()->get_id(), -1, trace_for_this_call.compute_hash());
 
     return trace_for_this_call;
 
@@ -225,9 +225,11 @@ void closure_exit(dyntracer_t* dyntracer,
 
     }
 
-    state.deal_with_call_trace(deal_with_function_call(function_call, return_value, &state));
+    CallTrace ct = deal_with_function_call(function_call, return_value, &state);
 
-    state.get_dependencies().add_return(return_value, function_call->get_function()->get_id());
+    state.deal_with_call_trace(ct);
+
+    state.get_dependencies().add_return(return_value, function_call->get_function()->get_id(), ct.compute_hash());
 
     function_call->set_return_value_type(type_of_sexp(return_value));
 
