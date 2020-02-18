@@ -288,19 +288,32 @@ std::string list_logic(SEXP list_sxp) {
     bool has_null = false;
 
     std::string ret_str = "list<";
-    std::string last_type = "empty";
+    std::string this_type = "empty";
     std::string new_type = "";
     int len = LENGTH(list_sxp);
 
     // NAMES :: list names 
     SEXP names = getAttrib(list_sxp, R_NamesSymbol);
     std::string names_tag = "@names[";
+    std::string inner_names = "";
+    std::string overall_type = "";
 
-    // TODO: Modify this to get the type put with the names, or to make another tag
-    //       with the type names.
+    // 
     for(int i = 0; i < len; ++i) {
         SEXP elt = VECTOR_ELT(list_sxp, i);
+        this_type = simple_type_of_value(elt);
 
+        // Check if the type was consistent throughout the list.
+        if (i == 0) {
+            overall_type = this_type;
+        } else {
+            new_type = simple_type_of_value(elt);
+            if (this_type.compare(overall_type) != 0) {
+                overall_type = "any";
+            }
+        }
+
+        /*
         if (last_type.compare("any") != 0) {
             if (i == 0) {
                 last_type = simple_type_of_value(elt);
@@ -311,31 +324,38 @@ std::string list_logic(SEXP list_sxp) {
                 }
             }
         } // no else
-
+        */
+        
         if (names != R_NilValue) {
             // TODO: sanitize the name here.
             std::string the_name_as_string(CHAR(VECTOR_ELT(names, i)));
 
             std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
 
-            names_tag.append(the_name_as_string);
+            inner_names.append(the_name_as_string);
+            inner_names.append(":");
+            inner_names.append(this_type);
             if (i != len - 1)
-                names_tag.append("~");
+                inner_names.append("~");
             else 
-                names_tag.append("]");
+                inner_names.append("]");
         }
 
         if (elt == R_NilValue)
             has_null = true;
     }
 
-    ret_str.append(last_type);
+    if (names == R_NilValue)
+        ret_str.append(overall_type);
+    else
+        ret_str.append(inner_names);
+
     ret_str.append(">");
     std::string len_str = "[" + std::to_string(len) + "]";
     ret_str.append(len_str);
 
-    if (names != R_NilValue)
-        ret_str.append(names_tag);
+    // if (names != R_NilValue)
+    //     ret_str.append(names_tag);
 
     if (!has_null) {
         ret_str.append("@NULL-free");
