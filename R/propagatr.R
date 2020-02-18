@@ -1,4 +1,5 @@
 create_dyntracer <- function(output_dirpath,
+                             package_under_analysis = "test",
                              analyzed_file_name = "",
                              verbose = FALSE,
                              truncate = TRUE,
@@ -9,6 +10,7 @@ create_dyntracer <- function(output_dirpath,
 
     .Call(C_create_dyntracer,
           output_dirpath,
+          package_under_analysis,
           analyzed_file_name,
           verbose,
           truncate,
@@ -24,6 +26,7 @@ destroy_dyntracer <- function(dyntracer) {
 # expr: program to trace
 # output_dir: where to put the data files
 dyntrace_types <- function( expr,
+                            package_under_analysis = "test",
                             output_dirpath = "./results",
                             analyzed_file_name = "test",
                             verbose = FALSE,
@@ -38,6 +41,7 @@ dyntrace_types <- function( expr,
     compression_level <- as.integer(compression_level)
 
     dyntracer <- create_dyntracer(output_dirpath,
+                                  package_under_analysis,
                                   analyzed_file_name,
                                   verbose,
                                   truncate,

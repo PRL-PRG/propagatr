@@ -63,17 +63,6 @@ void closure_entry(dyntracer_t* dyntracer,
 
     Call* function_call = state.create_call(call, op, args, rho);
 
-    // forin C++
-    /*
-    function_id_t fn_id = function_call->get_function()->get_id();
-    for (Argument* argument: call->get_arguments()) {
-      SEXP arg_val = argument->get_denoted_value()->get_expression();
-
-      // check if arg is in the table
-      state.add_argument_dependency(arg_val, fn_id, argument->get_formal_parameter_position());
-    }
-    */
-
     set_dispatch(function_call, dispatch);
 
     state.push_stack(function_call);
@@ -82,10 +71,11 @@ void closure_entry(dyntracer_t* dyntracer,
 }
 
 // for typr stuff
-CallTrace deal_with_function_call(Call* function_call, SEXP return_value, TracerState* state) {
+CallTrace deal_with_function_call(Call* function_call, SEXP return_value, dyntrace_dispatch_t dispatch, TracerState* state) {
     CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
                                                 function_call->get_function_name(),
-                                                function_call->get_function()->get_id());
+                                                function_call->get_function()->get_id(),
+                                                dispatch);
 
     for (Argument* argument: function_call->get_arguments()) {
         int param_pos = argument->get_formal_parameter_position();
@@ -115,7 +105,8 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, Tracer
 
                 if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
                     // put tag with the function id
-                    tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                    // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                    tags.push_back(state->lookup_function(val)->get_id());
                 }
 
                 trace_for_this_call.add_to_call_trace(param_pos, Type(val, tags));
@@ -124,7 +115,8 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, Tracer
 
                 if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
                     // put tag with the function id
-                    tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                    // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                    tags.push_back(state->lookup_function(val)->get_id());
                 }
 
                 tags.push_back("missing");
@@ -144,7 +136,8 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, Tracer
     std::vector<std::string> tags;
     if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
         // put tag with the function id
-        tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
+        // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
+        tags.push_back(state->lookup_function(return_value)->get_id());
     }
 
     trace_for_this_call.add_to_call_trace(-1, Type(return_value, tags));
@@ -152,10 +145,11 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, Tracer
     return trace_for_this_call;
 }
 
-CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP return_value, TracerState* state) {
+CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP return_value, TracerState* state, dyntrace_dispatch_t dispatch) {
     CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
                                                 function_call->get_function_name(),
-                                                function_call->get_function()->get_id());
+                                                function_call->get_function()->get_id(),
+                                                dispatch);
 
     int i = 0;
     
@@ -225,7 +219,7 @@ void closure_exit(dyntracer_t* dyntracer,
 
     }
 
-    CallTrace ct = deal_with_function_call(function_call, return_value, &state);
+    CallTrace ct = deal_with_function_call(function_call, return_value, dispatch, &state);
 
     state.deal_with_call_trace(ct);
 
@@ -239,6 +233,28 @@ void closure_exit(dyntracer_t* dyntracer,
 
     state.exit_probe(Event::ClosureExit);
 }
+
+// void S3_dispatch_entry(dyntracer_t *dyntracer, const char* generic,
+//                                     const SEXP cls, const SEXP generic_method,
+//                                     const SEXP specific_method, const SEXP objects) {
+//     // Fires when an S3 method is entered.
+//     // Will get a closure_entry later.
+//     // Need to set up a flag, to communicate to the next call that S3 dispatch occured.
+//     TracerState& state = tracer_state(dyntracer);
+//     state.enter_probe(Event::S3DispatchEntry);
+//     state.notifyUpcomingS3();
+//     state.exit_probe(Event::S3DispatchEntry);
+// }
+
+// void S4_dispatch_argument(dyntracer_t *dyntracer,
+//                                        const SEXP argument) {
+//     // Fires when S4 dispatch is happening.
+//     // Same as above.
+//     TracerState& state = tracer_state(dyntracer);
+//     state.enter_probe(Event::S4DispatchArgument);
+//     state.notifyDealtWithS4();
+//     state.exit_probe(Event::S4DispatchArgument);
+// }
 
 void builtin_entry(dyntracer_t* dyntracer,
                   const SEXP call,
@@ -268,7 +284,7 @@ void builtin_exit(dyntracer_t* dyntracer,
         dyntrace_log_error("Not found matching builtin on stack");
     }
     Call* function_call = exec_ctxt.get_builtin();
-    state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state));
+    state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state, dispatch));
 
     function_call->set_return_value_type(type_of_sexp(return_value));
     state.notify_caller(function_call);
@@ -304,7 +320,7 @@ void special_exit(dyntracer_t* dyntracer,
         dyntrace_log_error("Not found matching special object on stack");
     }
     Call* function_call = exec_ctxt.get_special();
-    state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state));
+    state.deal_with_call_trace(deal_with_builtin_and_special(function_call, args, return_value, &state, dispatch));
 
     function_call->set_return_value_type(type_of_sexp(return_value));
     state.notify_caller(function_call);

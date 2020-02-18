@@ -76,5 +76,12 @@ void context_jump(dyntracer_t* dyntracer,
                   int restart);
 
 void context_exit(dyntracer_t* dyntracer, const RCNTXT*);
+
+// void S3_dispatch_entry(dyntracer_t *dyntracer, const char* generic,
+//                                     const SEXP cls, const SEXP generic_method,
+//                                     const SEXP specific_method, const SEXP objects);
+// void S4_dispatch_argument(dyntracer_t *dyntracer,
+//                                        const SEXP argument);
+
 }
 #endif /* __PROBES_H__ */

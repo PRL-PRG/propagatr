@@ -4,6 +4,8 @@
 
 #include <algorithm>
 
+const bool SHORTEN_ENV = true;
+
 int mkdir_p(const char *path, mode_t mode)
 {
     /* Adapted from http://stackoverflow.com/a/2336245/119527 */
@@ -210,6 +212,29 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
     std::string len_portion = "[" + std::to_string(len) + "]";
     ret_str.append(len_portion);
 
+    // TODO: This involves a rerun through the data, which isn't desirable. But the alternative
+    //       isn't really maintainable. Figure out what you'd like to do here.
+    SEXP names = getAttrib(vec_sexp, R_NamesSymbol);
+    std::string names_tag = "@names[";
+
+    if (names != R_NilValue) {
+        for(int i = 0; i < len; ++i) {
+            // Sanitize name.
+            std::string the_name_as_string(CHAR(VECTOR_ELT(names, i)));
+
+            std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+
+            names_tag.append(the_name_as_string);
+            if (i != len - 1)
+                names_tag.append("~");
+            else 
+                names_tag.append("]");
+        }
+    
+        ret_str.append(names_tag);
+
+    }
+
     if (!has_na) {
         // append NA-less tag 
 
@@ -225,7 +250,6 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
 
 // TODO it might be a data frame?
 std::string list_logic(SEXP list_sxp) {
-
     
     if (Rf_isFrame(list_sxp)) {
         SEXP col_names = getAttrib(list_sxp, R_NamesSymbol);
@@ -235,12 +259,23 @@ std::string list_logic(SEXP list_sxp) {
         std::string ret_df = "data.frame";
         ret_df.append("[" + std::to_string(num_rows) + "-" + std::to_string(num_cols) + "]");
         
-        // TODO col names?
         int len = LENGTH(col_names);
         if (len > 0) {
             ret_df.append("@col-names[");
             for (int i = 0; i < len; ++i) {
-                ret_df.append(CHAR(STRING_ELT(col_names, i)));
+                // NAMES :: column names
+                std::string the_name_as_string(CHAR(STRING_ELT(col_names, i)));
+
+                std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+
+                // char * comma_pos = strchr(the_name, ',');
+                // if (comma_pos != NULL) {
+                //     ret_df.append("NameContainsComma");
+                // } else {
+                //     ret_df.append(the_name);
+                // }
+
+                ret_df.append(the_name_as_string);
                 if (i != len - 1)
                     ret_df.append("~");
             }
@@ -257,10 +292,12 @@ std::string list_logic(SEXP list_sxp) {
     std::string new_type = "";
     int len = LENGTH(list_sxp);
 
-    // list names
+    // NAMES :: list names 
     SEXP names = getAttrib(list_sxp, R_NamesSymbol);
     std::string names_tag = "@names[";
 
+    // TODO: Modify this to get the type put with the names, or to make another tag
+    //       with the type names.
     for(int i = 0; i < len; ++i) {
         SEXP elt = VECTOR_ELT(list_sxp, i);
 
@@ -276,7 +313,12 @@ std::string list_logic(SEXP list_sxp) {
         } // no else
 
         if (names != R_NilValue) {
-            names_tag.append(CHAR(VECTOR_ELT(names, i)));
+            // TODO: sanitize the name here.
+            std::string the_name_as_string(CHAR(VECTOR_ELT(names, i)));
+
+            std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+
+            names_tag.append(the_name_as_string);
             if (i != len - 1)
                 names_tag.append("~");
             else 
@@ -304,6 +346,10 @@ std::string list_logic(SEXP list_sxp) {
 
 std::string env_logic(SEXP env_sxp) {
     std::string ret_str = "environment";
+
+    if (SHORTEN_ENV) {
+        return (ret_str);
+    }
 
     // these environments are big so we just shorten them
     if (env_sxp == R_GlobalEnv) {

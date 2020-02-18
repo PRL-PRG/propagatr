@@ -17,12 +17,14 @@ void handleSignal(int signum) {
 }
 
 SEXP create_dyntracer(SEXP output_dirpath,
+                      SEXP package_under_analysis,
                       SEXP analyzed_file_name,
                       SEXP verbose,
                       SEXP truncate,
                       SEXP binary,
                       SEXP compression_level) {
     void* state = new TracerState(sexp_to_string(output_dirpath),
+                                  sexp_to_string(package_under_analysis),
                                   sexp_to_string(analyzed_file_name),
                                   sexp_to_bool(verbose),
                                   sexp_to_bool(truncate),
@@ -50,6 +52,8 @@ SEXP create_dyntracer(SEXP output_dirpath,
     dyntracer->probe_special_exit = special_exit;
     dyntracer->probe_promise_force_entry = promise_force_entry;
     dyntracer->probe_promise_force_exit = promise_force_exit;
+    // dyntracer->probe_S3_dispatch_entry = S3_dispatch_entry;
+    // dyntracer->probe_S4_dispatch_argument = S4_dispatch_argument;
     dyntracer->state = state;
 
     /* Move these up as needed.
@@ -59,8 +63,6 @@ SEXP create_dyntracer(SEXP output_dirpath,
         closure_argument_list_creation_entry;
     dyntracer->probe_closure_argument_list_creation_exit =
         closure_argument_list_creation_exit;
-    dyntracer->probe_S3_dispatch_entry = S3_dispatch_entry;
-    dyntracer->probe_S4_dispatch_argument = S4_dispatch_argument;
     dyntracer->probe_gc_entry = gc_entry;
     dyntracer->probe_promise_force_entry = promise_force_entry;
     dyntracer->probe_gc_allocate = gc_allocate;

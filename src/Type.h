@@ -49,6 +49,9 @@ class Type {
             SEXP attr_names = getAttrib(attrs_as_sxp, R_NamesSymbol);
             for (int i = 0; i < LENGTH(attr_names); i++) {
                 attr_names_.push_back(CHAR(STRING_ELT(attr_names, i)));
+
+                // TODO: check if the attr_names[i] is "names", if so, we want to grab the names.
+                
             }
         }
     }

@@ -81,10 +81,10 @@ public:
 
   ExecutionContextStack &get_stack_() { return stack_; }
 
-  TracerState(const std::string &output_dirpath, const std::string &analyzed_file_name, bool verbose, bool truncate,
-              bool binary, int compression_level)
-      : output_dirpath_(output_dirpath), analyzed_file_name_(analyzed_file_name), verbose_(verbose), truncate_(truncate),
-        binary_(binary), compression_level_(compression_level), timestamp_(0),
+  TracerState(const std::string &output_dirpath, const std::string &package_under_analysis, const std::string &analyzed_file_name, 
+              bool verbose, bool truncate, bool binary, int compression_level)
+      : output_dirpath_(output_dirpath), package_under_analysis_(package_under_analysis), analyzed_file_name_(analyzed_file_name), 
+        verbose_(verbose), truncate_(truncate), binary_(binary), compression_level_(compression_level), timestamp_(0),
         event_counter_(to_underlying(Event::COUNT), 0) {  }
 
   Function *lookup_function(const SEXP op) {
@@ -330,10 +330,9 @@ public:
       std::stringstream out;
 
       // type
-      out << type.get_top_level_type();
+      out << "\"" << type.get_top_level_type();
 
       // tags
-      // TODO this
       std::vector<std::string> * tags = type.get_tags();
       if (tags->size() != 0) {
         for (auto it = tags->begin(); it != tags->end(); ++it) {
@@ -341,7 +340,7 @@ public:
         }
       }
       
-      out << ",{";
+      out << "\",\"{";
 
       // classes
       std::vector<std::string> classes = type.get_classes();
@@ -355,7 +354,7 @@ public:
         } 
       }
 
-      out << "},{";
+      out << "}\",\"{";
 
         // attrs
       std::vector<std::string> attrs = type.get_attr_names();
@@ -368,7 +367,7 @@ public:
         } 
       }
 
-      out << "}";
+      out << "}\"";
 
       return out.str();
     }
@@ -396,10 +395,21 @@ public:
       //    print the trace + counts to file
       for (std::pair<CallTrace, CallTrace> element : traces_) {
         // what format do we want?
-        // pkg, fun, ret_t, ret_c, ret_a, {p_t, p_c, p_a | p \in num_params}
+        // pkg_being_analyzed, pkg, fun, ret_t, ret_c, ret_a, {p_t, p_c, p_a | p \in num_params}
         CallTrace el = element.second;
+
+        std::string dispatch_type = "None";
+        switch(el.get_dispatch_type()) {
+          case DYNTRACE_DISPATCH_S3:
+            dispatch_type = "S3";
+            break;
+          case DYNTRACE_DISPATCH_S4:
+            dispatch_type = "S4";
+            break;
+        }
+
         std::unordered_map<int, Type> trace_map = el.get_call_trace();
-        out << el.get_package_name() << "," << el.get_function_name() << "," << el.get_fn_id() << "," << el.compute_hash() << "," << counts_[el] << ",";
+        out << package_under_analysis_ << "," << el.get_package_name() << "," << el.get_function_name() << ",\"" << el.get_fn_id() << "\"," << el.compute_hash() << "," << el.compute_hash_just_for_types() << "," << dispatch_type << "," << counts_[el] << ",";
 
         std::vector<int> keys;
         keys.reserve(trace_map.size());
@@ -462,7 +472,7 @@ public:
       // might involve having to copy the file
 
       int max_num_of_args = max_of_max;
-      std::string init_header_string = "package,fun_name,fun_id,trace_hash,count,arg_t_r,arg_c_r,arg_a_r";
+      std::string init_header_string = "package_being_analyzed,package,fun_name,fun_id,trace_hash,type_hash,dispatch,count,arg_t_r,arg_c_r,arg_a_r";
       for (int i = 0; i <= max_num_of_args; ++i) {
         std::string elt = ",arg_t" + std::to_string(i) + ",arg_c" + std::to_string(i) + ",arg_a" + std::to_string(i);
         init_header_string.append(elt);
@@ -500,11 +510,10 @@ public:
       std::cout << "end: serialize...\n\n";
     }
 
-
-
   private:
     ExecutionContextStack stack_;
     const std::string output_dirpath_;
+    const std::string package_under_analysis_;
     const std::string analyzed_file_name_;
     gc_cycle_t gc_cycle_;
     const bool verbose_;
