@@ -212,8 +212,6 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
     std::string len_portion = "[" + std::to_string(len) + "]";
     ret_str.append(len_portion);
 
-    // TODO: This involves a rerun through the data, which isn't desirable. But the alternative
-    //       isn't really maintainable. Figure out what you'd like to do here.
     SEXP names = getAttrib(vec_sexp, R_NamesSymbol);
     std::string names_tag = "@names[";
 
@@ -223,12 +221,19 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
             std::string the_name_as_string(CHAR(VECTOR_ELT(names, i)));
 
             std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+            std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
 
+            names_tag.append("`"); // delimits names
             names_tag.append(the_name_as_string);
+            names_tag.append("`"); // ^
             if (i != len - 1)
                 names_tag.append("~");
             else 
                 names_tag.append("]");
+        }
+
+        if (len == 0) {
+            names_tag.append("]");
         }
     
         ret_str.append(names_tag);
@@ -248,34 +253,38 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
     return ret_str;
 }
 
-// TODO it might be a data frame?
 std::string list_logic(SEXP list_sxp) {
     
     if (Rf_isFrame(list_sxp)) {
         SEXP col_names = getAttrib(list_sxp, R_NamesSymbol);
-        int num_cols = Rf_ncols(list_sxp);
-        int num_rows = Rf_nrows(list_sxp);
+        int num_cols = LENGTH(col_names);
+        int num_rows = LENGTH(Rf_GetRowNames(list_sxp));
 
         std::string ret_df = "data.frame";
         ret_df.append("[" + std::to_string(num_rows) + "-" + std::to_string(num_cols) + "]");
         
         int len = LENGTH(col_names);
         if (len > 0) {
-            ret_df.append("@col-names[");
+            ret_df.append("@cols[");
             for (int i = 0; i < len; ++i) {
                 // NAMES :: column names
                 std::string the_name_as_string(CHAR(STRING_ELT(col_names, i)));
 
                 std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+                std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
 
-                // char * comma_pos = strchr(the_name, ',');
-                // if (comma_pos != NULL) {
-                //     ret_df.append("NameContainsComma");
-                // } else {
-                //     ret_df.append(the_name);
-                // }
+                // Deal with the type of the column
+                SEXP elt = VECTOR_ELT(list_sxp, i);
+                // This is if we want simple types. To get full types, do the other thing.
+                // std::string this_type = simple_type_of_value(elt);
+                // The other thing, for full types.
+                std::string this_type = get_type_of_sexp(elt);
 
+                ret_df.append("`"); // backticks to delimit names
                 ret_df.append(the_name_as_string);
+                ret_df.append("`:");
+                ret_df.append(this_type);
+
                 if (i != len - 1)
                     ret_df.append("~");
             }
@@ -289,56 +298,54 @@ std::string list_logic(SEXP list_sxp) {
 
     std::string ret_str = "list<";
     std::string this_type = "empty";
-    std::string new_type = "";
     int len = LENGTH(list_sxp);
 
     // NAMES :: list names 
     SEXP names = getAttrib(list_sxp, R_NamesSymbol);
-    std::string names_tag = "@names[";
+    // std::string names_tag = "@names[";
     std::string inner_names = "";
     std::string overall_type = "";
 
     // 
     for(int i = 0; i < len; ++i) {
         SEXP elt = VECTOR_ELT(list_sxp, i);
-        this_type = simple_type_of_value(elt);
+        // This is if we want simple types. To get full types, do the other thing.
+        // this_type = simple_type_of_value(elt);
+        // The other thing, for full types.
+        this_type = get_type_of_sexp(elt);
 
+        // This is if we just want one inner type.
+        // To build tuples, do the next thing.
         // Check if the type was consistent throughout the list.
-        if (i == 0) {
-            overall_type = this_type;
-        } else {
-            new_type = simple_type_of_value(elt);
-            if (this_type.compare(overall_type) != 0) {
-                overall_type = "any";
-            }
-        }
+        // if (i == 0) {
+        //     overall_type = this_type;
+        // } else {
+        //     if (this_type.compare(overall_type) != 0) {
+        //         overall_type = "any";
+        //     }
+        // }
 
-        /*
-        if (last_type.compare("any") != 0) {
-            if (i == 0) {
-                last_type = simple_type_of_value(elt);
-            } else {
-                new_type = simple_type_of_value(elt);
-                if (last_type.compare(new_type) != 0) {
-                    last_type = "any";
-                }
-            }
-        } // no else
-        */
+        // For tuples:
+        overall_type.append(this_type);
+        if (i != len - 1)
+            overall_type.append("~");
         
         if (names != R_NilValue) {
-            // TODO: sanitize the name here.
+            // If there are names, make it a struct.
+            ret_str = "struct<";
             std::string the_name_as_string(CHAR(VECTOR_ELT(names, i)));
 
             std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+            std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
 
+            inner_names.append("`"); // backticks to delimit names
             inner_names.append(the_name_as_string);
-            inner_names.append(":");
+            inner_names.append("`:");
             inner_names.append(this_type);
             if (i != len - 1)
                 inner_names.append("~");
-            else 
-                inner_names.append("]");
+            // else 
+            //     inner_names.append("]");
         }
 
         if (elt == R_NilValue)

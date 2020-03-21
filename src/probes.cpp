@@ -234,28 +234,6 @@ void closure_exit(dyntracer_t* dyntracer,
     state.exit_probe(Event::ClosureExit);
 }
 
-// void S3_dispatch_entry(dyntracer_t *dyntracer, const char* generic,
-//                                     const SEXP cls, const SEXP generic_method,
-//                                     const SEXP specific_method, const SEXP objects) {
-//     // Fires when an S3 method is entered.
-//     // Will get a closure_entry later.
-//     // Need to set up a flag, to communicate to the next call that S3 dispatch occured.
-//     TracerState& state = tracer_state(dyntracer);
-//     state.enter_probe(Event::S3DispatchEntry);
-//     state.notifyUpcomingS3();
-//     state.exit_probe(Event::S3DispatchEntry);
-// }
-
-// void S4_dispatch_argument(dyntracer_t *dyntracer,
-//                                        const SEXP argument) {
-//     // Fires when S4 dispatch is happening.
-//     // Same as above.
-//     TracerState& state = tracer_state(dyntracer);
-//     state.enter_probe(Event::S4DispatchArgument);
-//     state.notifyDealtWithS4();
-//     state.exit_probe(Event::S4DispatchArgument);
-// }
-
 void builtin_entry(dyntracer_t* dyntracer,
                   const SEXP call,
                   const SEXP op,
