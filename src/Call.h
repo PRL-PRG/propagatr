@@ -5,6 +5,7 @@
 #include "definitions.h"
 #include "stdlibs.h"
 #include "sexptypes.h"
+#include "CallTrace.h"
 
 class Function;
 
@@ -81,6 +82,18 @@ class Call {
         return arguments_;
     }
 
+    // void make_call_trace(std::string pname, std::string fname, function_id_t fn_id, dyntrace_dispatch_t dispatch) {
+    //     theTrace = CallTrace(pname, fname, fn_id, dispatch);
+    // }
+
+    void set_call_trace(CallTrace * ct) {
+        theTrace = ct;
+    }
+
+    CallTrace * get_call_trace() {
+        return theTrace;
+    }
+
   private:
     const call_id_t id_;
     const std::string function_name_;
@@ -93,6 +106,7 @@ class Call {
     pos_seq_t force_order_;
     bool S3_method_;
     bool S4_method_;
+    CallTrace * theTrace;
 };
 
 #endif /* PROMISEDYTRACER_CALL_H */

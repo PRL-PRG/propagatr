@@ -51,31 +51,12 @@ void dyntrace_exit(dyntracer_t* dyntracer,
        executing and we don't need to resume the timer. */
 }
 
-void closure_entry(dyntracer_t* dyntracer,
-                   const SEXP call,
-                   const SEXP op,
-                   const SEXP args,
-                   const SEXP rho,
-                   const dyntrace_dispatch_t dispatch) {
-    TracerState& state = tracer_state(dyntracer);
-
-    state.enter_probe(Event::ClosureEntry);
-
-    Call* function_call = state.create_call(call, op, args, rho);
-
-    set_dispatch(function_call, dispatch);
-
-    state.push_stack(function_call);
-
-    state.exit_probe(Event::ClosureEntry);
-}
-
 // for typr stuff
 CallTrace deal_with_function_call(Call* function_call, SEXP return_value, dyntrace_dispatch_t dispatch, TracerState* state) {
     CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
                                                 function_call->get_function_name(),
                                                 function_call->get_function()->get_id(),
-                                                dispatch);
+                                                dispatch, 42);
 
     for (Argument* argument: function_call->get_arguments()) {
         int param_pos = argument->get_formal_parameter_position();
@@ -146,7 +127,7 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, dyntra
 }
 
 CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP return_value, TracerState* state, dyntrace_dispatch_t dispatch) {
-    CallTrace trace_for_this_call = CallTrace(  function_call->get_function()->get_namespace(), 
+    CallTrace trace_for_this_call = state->create_call_trace(  function_call->get_function()->get_namespace(), 
                                                 function_call->get_function_name(),
                                                 function_call->get_function()->get_id(),
                                                 dispatch);
@@ -173,6 +154,79 @@ CallTrace deal_with_builtin_and_special(Call* function_call, SEXP args, SEXP ret
 
 }
 
+void exampleFun() {
+    
+}
+
+void exampleFun2() {
+    
+}
+
+void closure_entry(dyntracer_t* dyntracer,
+                   const SEXP call,
+                   const SEXP op,
+                   const SEXP args,
+                   const SEXP rho,
+                   const dyntrace_dispatch_t dispatch) {
+
+    TracerState& state = tracer_state(dyntracer);
+
+    state.enter_probe(Event::ClosureEntry);
+
+    Call* function_call = state.create_call(call, op, args, rho);
+
+    set_dispatch(function_call, dispatch);
+
+    function_call->set_call_trace(state.create_call_trace(function_call->get_function()->get_namespace(), 
+                                  function_call->get_function_name(), function_call->get_function()->get_id(),
+                                  dispatch));
+
+    // Find ... arguments, and deal with dispatch cases.
+    for (Argument * arg : function_call->get_arguments()) {
+        if (dispatch == DYNTRACE_DISPATCH_S3) {
+            // We care about the argument. Look for pre-evaluated arguments, and add them to ct.
+            if (arg->get_denoted_value()->is_forced() || arg->get_denoted_value()->is_preforced()) {
+                // Add it to the CT.
+                std::vector<std::string> tags;
+                SEXP value = arg->get_denoted_value()->get_raw_object();
+                auto the_type = type_of_sexp(value);
+
+                while (the_type == PROMSXP) {
+                    value = dyntrace_get_promise_value(value);
+                    the_type = type_of_sexp(value);
+                }
+
+                if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                    // put tag with the function id
+                    // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                    tags.push_back(state.lookup_function(value)->get_id());
+                }
+
+                // add the type to the call trace.
+                function_call->get_call_trace()->add_to_call_trace(arg->get_formal_parameter_position(), Type(value, tags));
+            }
+        }
+
+        if (arg->is_dot_dot_dot()) {
+            function_call->get_call_trace()->set_has_dots(true);
+            // break; // We only need one. But in case things are out of order...
+        }
+    }
+
+
+    state.push_stack(function_call);
+
+    // Create an initial call trace for this function, and push it onto the CallTract stack.
+    // CallTrace trace = CallTrace(function_call->get_function()->get_namespace(), 
+    //                             function_call->get_function_name(),
+    //                             function_call->get_function()->get_id(),
+    //                             dispatch); 
+
+    // state.push_trace(trace);
+
+    state.exit_probe(Event::ClosureEntry);
+}
+
 void closure_exit(dyntracer_t* dyntracer,
                   const SEXP call,
                   const SEXP op,
@@ -180,6 +234,7 @@ void closure_exit(dyntracer_t* dyntracer,
                   const SEXP rho,
                   const dyntrace_dispatch_t dispatch,
                   const SEXP return_value) {
+    
     TracerState& state = tracer_state(dyntracer);
 
     state.enter_probe(Event::ClosureExit);
@@ -194,39 +249,61 @@ void closure_exit(dyntracer_t* dyntracer,
 
     function_id_t fn_id = function_call->get_function()->get_id();
 
-    for (Argument* argument: function_call->get_arguments()) {
-      int param_pos = argument->get_formal_parameter_position();
-      DenotedValue * arg_val = argument->get_denoted_value();
+    // Dependencies?
+    // for (Argument* argument: function_call->get_arguments()) {
+    //   int param_pos = argument->get_formal_parameter_position();
+    //   DenotedValue * arg_val = argument->get_denoted_value();
 
-      SEXP raw_obj = arg_val->get_raw_object();
+    //   SEXP raw_obj = arg_val->get_raw_object();
 
-      if (arg_val->is_promise()) {
-        SEXP val = dyntrace_get_promise_value(raw_obj);
-        // all will get forced, so yeah.
-        while (type_of_sexp(val) == PROMSXP) {
-        // while (TYPEOF(val) == PROMSXP) {
-          val = dyntrace_get_promise_value(val);
-        }
-        if (val != R_UnboundValue) {
-          // its forced
-          state.get_dependencies().add_argument(val, fn_id, param_pos);
-        } else {
-          // don't have to do anything, nothing to do
-        }
-      } else {
-        state.get_dependencies().add_argument(raw_obj, fn_id, param_pos);
-      }
+    //   if (arg_val->is_promise()) {
+    //     SEXP val = dyntrace_get_promise_value(raw_obj);
+    //     // all will get forced, so yeah.
+    //     while (type_of_sexp(val) == PROMSXP) {
+    //     // while (TYPEOF(val) == PROMSXP) {
+    //       val = dyntrace_get_promise_value(val);
+    //     }
+    //     if (val != R_UnboundValue) {
+    //       // its forced
+    //       state.get_dependencies().add_argument(val, fn_id, param_pos);
+    //     } else {
+    //       // don't have to do anything, nothing to do
+    //     }
+    //   } else {
+    //     state.get_dependencies().add_argument(raw_obj, fn_id, param_pos);
+    //   }
 
-    }
+    // }
 
-    CallTrace ct = deal_with_function_call(function_call, return_value, dispatch, &state);
+    // Old way of dealing with function calls.
+    // CallTrace ct = deal_with_function_call(function_call, return_value, dispatch, &state);
 
-    state.deal_with_call_trace(ct);
+    // state.deal_with_call_trace(ct); // COMMENT THIS WHEN CHANGING BACK
 
-    state.get_dependencies().add_return(return_value, function_call->get_function()->get_id(), ct.compute_hash());
+    // state.get_dependencies().add_return(return_value, function_call->get_function()->get_id(), ct.compute_hash());
 
     function_call->set_return_value_type(type_of_sexp(return_value));
 
+    // Deal with return.
+    // CallTrace ct = state.pop_trace_stack();
+
+    CallTrace ct = function_call->get_call_trace();
+
+    auto the_type = type_of_sexp(return_value);
+    std::vector<std::string> tags;
+    if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+        // put tag with the function id
+        // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
+        tags.push_back(state.lookup_function(return_value)->get_id());
+    }
+
+    ct.add_to_call_trace(-1, Type(return_value, tags));
+
+    state.get_dependencies().add_return(return_value, function_call->get_function()->get_id(), ct.compute_hash());
+
+    state.deal_with_call_trace(ct); 
+
+    // Done dealing with return.
     state.notify_caller(function_call);
 
     state.destroy_call(function_call);
@@ -240,12 +317,26 @@ void builtin_entry(dyntracer_t* dyntracer,
                   const SEXP args,
                   const SEXP rho,
                   const dyntrace_dispatch_t dispatch) {
-   TracerState& state = tracer_state(dyntracer);
-   state.enter_probe(Event::BuiltinEntry);
-   Call* function_call = state.create_call(call, op, args, rho);
-   set_dispatch(function_call, dispatch);
-   state.push_stack(function_call);
-   state.exit_probe(Event::BuiltinEntry);
+    TracerState& state = tracer_state(dyntracer);
+    state.enter_probe(Event::BuiltinEntry);
+    Call* function_call = state.create_call(call, op, args, rho);
+    set_dispatch(function_call, dispatch);
+
+    function_call->set_call_trace(state.create_call_trace(function_call->get_function()->get_namespace(), 
+                                  function_call->get_function_name(), function_call->get_function()->get_id(),
+                                  dispatch));
+
+    state.push_stack(function_call);
+
+    // Create an initial call trace for this function, and push it onto the CallTract stack.
+    // CallTrace trace = CallTrace(function_call->get_function()->get_namespace(), 
+    //                             function_call->get_function_name(),
+    //                             function_call->get_function()->get_id(),
+    //                             dispatch); 
+
+    // state.push_trace(trace);
+
+    state.exit_probe(Event::BuiltinEntry);
 }
 
 void builtin_exit(dyntracer_t* dyntracer,
@@ -266,7 +357,15 @@ void builtin_exit(dyntracer_t* dyntracer,
 
     function_call->set_return_value_type(type_of_sexp(return_value));
     state.notify_caller(function_call);
+
+    // CallTrace ct = state.pop_trace_stack();
+    // Deal with return.
+    // ct.add_to_call_trace(-1, Type(return_value));
+    // state.get_dependencies().add_argument(return_value, function_call->get_function()->get_id(), -1, ct.compute_hash());
+
     state.destroy_call(function_call);
+    // state.deal_with_call_trace(ct);
+
     state.exit_probe(Event::BuiltinExit);
 }
 
@@ -276,12 +375,26 @@ void special_entry(dyntracer_t* dyntracer,
                   const SEXP args,
                   const SEXP rho,
                   const dyntrace_dispatch_t dispatch) {
-   TracerState& state = tracer_state(dyntracer);
-   state.enter_probe(Event::SpecialEntry);
-   Call* function_call = state.create_call(call, op, args, rho);
-   set_dispatch(function_call, dispatch);
-   state.push_stack(function_call);
-   state.exit_probe(Event::SpecialEntry);
+    TracerState& state = tracer_state(dyntracer);
+    state.enter_probe(Event::SpecialEntry);
+    Call* function_call = state.create_call(call, op, args, rho);
+    set_dispatch(function_call, dispatch);
+
+    function_call->set_call_trace(state.create_call_trace(function_call->get_function()->get_namespace(), 
+                                  function_call->get_function_name(), function_call->get_function()->get_id(),
+                                  dispatch));
+                                  
+    state.push_stack(function_call);
+
+    // Create an initial call trace for this function, and push it onto the CallTract stack.
+    // CallTrace trace = CallTrace(function_call->get_function()->get_namespace(), 
+    //                             function_call->get_function_name(),
+    //                             function_call->get_function()->get_id(),
+    //                             dispatch); 
+
+    // state.push_trace(trace);
+
+    state.exit_probe(Event::SpecialEntry);
 }
 
 void special_exit(dyntracer_t* dyntracer,
@@ -302,7 +415,16 @@ void special_exit(dyntracer_t* dyntracer,
 
     function_call->set_return_value_type(type_of_sexp(return_value));
     state.notify_caller(function_call);
+
+    // CallTrace ct = state.pop_trace_stack();
+
+    // Add the return?
+    // ct.add_to_call_trace(-1, Type(return_value));
+    // state.get_dependencies().add_argument(return_value, function_call->get_function()->get_id(), -1, ct.compute_hash());
+
     state.destroy_call(function_call);
+    // state.deal_with_call_trace(ct);
+
     state.exit_probe(Event::SpecialExit);
 }
 
@@ -338,19 +460,50 @@ void promise_force_exit(dyntracer_t* dyntracer, const SEXP promise) {
 
     const SEXP value = dyntrace_get_promise_value(promise);
 
-    promise_state->set_value_type(type_of_sexp(value));
+    auto the_type = type_of_sexp(value);
+    promise_state->set_value_type(the_type);
 
     /* if promise is not an argument, then don't process it. */
     if (promise_state->is_argument()) {
         // we know that the call is valid because this is an argument promise
 
+        // Look at the argument(s, if it's ...)
         for (Argument * arg : promise_state->get_arguments()) {
-          // get info
-          function_id_t fn_id = arg->get_call()->get_function()->get_id();
-          int param_pos = arg->get_formal_parameter_position();
 
-          // put it
-          state.get_dependencies().add_argument(value, fn_id, param_pos);
+            // We don't want ... arguments, but let's warn the function
+            // that it has ... arguments.
+            if (arg->is_dot_dot_dot()) {
+                // This is dealt with in a prepass phase in closure_entry.
+                // CallTrace * ct = arg->get_call()->get_call_trace();
+                // ct->set_has_dots(true);
+                continue;
+            }
+
+            // get info
+            function_id_t fn_id = arg->get_call()->get_function()->get_id();
+            int param_pos = arg->get_formal_parameter_position();
+            
+            CallTrace * ct = arg->get_call()->get_call_trace();
+
+            // if (arg->get_call()->get_function_name() == "h")
+            //     std::cout << "uid: " << ct->get_uid() << "\n";
+
+            std::vector<std::string> tags;
+
+            if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                // put tag with the function id
+                // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                tags.push_back(state.lookup_function(value)->get_id());
+            }
+
+            // add the type to the call trace.
+            ct->add_to_call_trace(param_pos, Type(value, tags));
+
+            // DEBUG:
+            // std::cout << ct->get_function_name() << " " << ct->get_call_trace().at(param_pos).get_top_level_type() << "\n";
+
+            // put it
+            state.get_dependencies().add_argument(value, fn_id, param_pos);
         }
     }
 
@@ -420,6 +573,7 @@ void context_jump(dyntracer_t* dyntracer,
                  const RCNTXT* context,
                  const SEXP return_value,
                  int restart) {
+                     
    TracerState& state = tracer_state(dyntracer);
    state.enter_probe(Event::ContextJump);
    /* Identify promises that do non local return. First, check if
