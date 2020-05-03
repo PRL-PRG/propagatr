@@ -629,8 +629,7 @@ public:
             name = TAG(formal);
             /* lookup argument in environment by name */
             argument = dyntrace_lookup_environment(rho, name);
-            switch (type_of_sexp(argument)) {
-            case DOTSXP:
+            if (std::string(CHAR(name)) == "...") {
                 for (SEXP dot_dot_dot_arguments = argument;
                      dot_dot_dot_arguments != R_NilValue;
                      dot_dot_dot_arguments = CDR(dot_dot_dot_arguments)) {
@@ -644,8 +643,7 @@ public:
                                               dot_dot_dot_argument,
                                               true);
                 }
-                break;
-            default:
+            } else {
                 ++actual_argument_position;
                 process_closure_argument_(call,
                                           formal_parameter_position,
@@ -653,7 +651,6 @@ public:
                                           name,
                                           argument,
                                           is_dots_symbol(name));
-                break;
             }
         }
     }
