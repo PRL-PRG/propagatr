@@ -629,7 +629,7 @@ public:
             name = TAG(formal);
             /* lookup argument in environment by name */
             argument = dyntrace_lookup_environment(rho, name);
-            if (std::string(CHAR(PRINTNAME(name))) == "...") {
+            if (name == R_DotsSymbol) {
                 for (SEXP dot_dot_dot_arguments = argument;
                      dot_dot_dot_arguments != R_NilValue;
                      dot_dot_dot_arguments = CDR(dot_dot_dot_arguments)) {
