@@ -630,17 +630,30 @@ public:
             /* lookup argument in environment by name */
             argument = dyntrace_lookup_environment(rho, name);
             if (name == R_DotsSymbol) {
-                for (SEXP dot_dot_dot_arguments = argument;
-                     dot_dot_dot_arguments != R_NilValue;
-                     dot_dot_dot_arguments = CDR(dot_dot_dot_arguments)) {
+                if (type_of_sexp(argument) == DOTSXP) {
+                    for (SEXP dot_dot_dot_arguments = argument;
+                         dot_dot_dot_arguments != R_NilValue;
+                         dot_dot_dot_arguments = CDR(dot_dot_dot_arguments)) {
+                        ++actual_argument_position;
+                        name = TAG(dot_dot_dot_arguments);
+                        SEXP dot_dot_dot_argument = CAR(dot_dot_dot_arguments);
+                        process_closure_argument_(call,
+                                                  formal_parameter_position,
+                                                  actual_argument_position,
+                                                  name,
+                                                  dot_dot_dot_argument,
+                                                  true);
+                    }
+                }
+                /* craziness of the form UseMethod("f", ..1) can convert DOTSXP
+                   argument to non DOTSXP one at ... positions */
+                else {
                     ++actual_argument_position;
-                    name = TAG(dot_dot_dot_arguments);
-                    SEXP dot_dot_dot_argument = CAR(dot_dot_dot_arguments);
                     process_closure_argument_(call,
                                               formal_parameter_position,
                                               actual_argument_position,
                                               name,
-                                              dot_dot_dot_argument,
+                                              argument,
                                               true);
                 }
             } else {
