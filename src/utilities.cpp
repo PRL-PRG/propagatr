@@ -69,6 +69,29 @@ bool file_exists(const std::string& filepath) {
 
 // typr stuff
 
+std::string deal_with_promise(SEXP thing) {
+    
+    // We know its a promise.
+    SEXP val = dyntrace_get_promise_value(thing);
+    SEXP old_expr = dyntrace_get_promise_expression(thing);
+    // all will get forced, so yeah.
+    while (TYPEOF(val) == PROMSXP) {
+    // while (TYPEOF(val) == PROMSXP) {
+        old_expr = dyntrace_get_promise_expression(val);
+        val = dyntrace_get_promise_value(val);
+    }
+
+    auto the_type = TYPEOF(val);
+
+    // TODO test this with real promises
+    if (val != R_UnboundValue) {
+        // std::cout << param_pos << ": something was passed and it was used.\n";
+        return get_type_of_sexp(val);
+    } else {
+        return "missing";
+    }
+}
+
 std::string simple_type_of_value(SEXP val) {
     switch (TYPEOF(val)) {
         case NILSXP:
@@ -82,7 +105,7 @@ std::string simple_type_of_value(SEXP val) {
         case ENVSXP:
             return "env";
         case PROMSXP:
-            return "unused";
+            return deal_with_promise(val);
         case LANGSXP:
             return "LANGSXP";
         case SPECIALSXP:
@@ -421,7 +444,7 @@ std::string get_type_of_sexp(SEXP thing) {
             return env_logic(thing);
             // return "environment";
         case PROMSXP:
-            return "unused";
+            return deal_with_promise(thing);
         case LANGSXP:
             return "LANGSXP";
         case SPECIALSXP:

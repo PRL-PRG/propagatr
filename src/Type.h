@@ -9,8 +9,16 @@ class Type {
     explicit Type(std::string top_level_type) :
     top_level_type_(top_level_type) {}
 
+    explicit Type(sexptype_t type) {
+        if (type == JUMPSXP) {
+            top_level_type_ = "jumped";
+        } else if (type == DOTSXP) {
+            top_level_type_ = "...";
+        } 
+    }
+
     explicit Type(SEXP get_my_type, const std::vector<std::string> tags = {}) {
-        
+
         /* type */
 
         // tags first
@@ -20,6 +28,7 @@ class Type {
             top_level_type_ = "missing";
         } else {
             // split if necessary
+            
             std::string type = get_type_of_sexp(get_my_type);
             auto loc_of_at = type.find("@");
             

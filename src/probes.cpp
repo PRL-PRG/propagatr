@@ -207,8 +207,10 @@ void closure_entry(dyntracer_t* dyntracer,
             }
         }
 
+        // Do something different here. Need positional ... types.
         if (arg->is_dot_dot_dot()) {
             function_call->get_call_trace()->set_has_dots(true);
+            function_call->get_call_trace()->add_to_call_trace(arg->get_formal_parameter_position(), Type(DOTSXP));
             // break; // We only need one. But in case things are out of order...
         }
     }
@@ -282,24 +284,32 @@ void closure_exit(dyntracer_t* dyntracer,
 
     // state.get_dependencies().add_return(return_value, function_call->get_function()->get_id(), ct.compute_hash());
 
-    function_call->set_return_value_type(type_of_sexp(return_value));
+    SEXP val = return_value;
+    // all will get forced, so yeah.
+    while (type_of_sexp(val) == PROMSXP) {
+        val = dyntrace_get_promise_value(val);
+    }
 
-    // Deal with return.
-    // CallTrace ct = state.pop_trace_stack();
+    auto the_type = type_of_sexp(val);
+
+    function_call->set_return_value_type(type_of_sexp(val));
+
+    // NOTE: This code is duplicated in jump_single_context.
+    // If you change one, change both.
 
     CallTrace ct = function_call->get_call_trace();
 
-    auto the_type = type_of_sexp(return_value);
+    // auto the_type = type_of_sexp(val);
     std::vector<std::string> tags;
     if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
         // put tag with the function id
         // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
-        tags.push_back(state.lookup_function(return_value)->get_id());
+        tags.push_back(state.lookup_function(val)->get_id());
     }
 
-    ct.add_to_call_trace(-1, Type(return_value, tags));
+    ct.add_to_call_trace(-1, Type(val, tags));
 
-    state.get_dependencies().add_return(return_value, function_call->get_function()->get_id(), ct.compute_hash());
+    state.get_dependencies().add_return(val, function_call->get_function()->get_id(), ct.compute_hash());
 
     state.deal_with_call_trace(ct); 
 
@@ -476,6 +486,8 @@ void promise_force_exit(dyntracer_t* dyntracer, const SEXP promise) {
                 // This is dealt with in a prepass phase in closure_entry.
                 // CallTrace * ct = arg->get_call()->get_call_trace();
                 // ct->set_has_dots(true);
+                // Doesn't work here:
+                // arg->get_call()->get_call_trace()->add_to_call_trace(arg->get_formal_parameter_position(), Type(DOTSXP));
                 continue;
             }
 
@@ -551,11 +563,52 @@ void jump_single_context(TracerState& state,
                         ExecutionContext& exec_ctxt,
                         bool returned,
                         const sexptype_t return_value_type,
+                        const SEXP return_value,
                         const SEXP rho) {
    if (exec_ctxt.is_call()) {
        Call* call = exec_ctxt.get_call();
        call->set_jumped();
        call->set_return_value_type(return_value_type);
+
+       /* Duplicate closure_exit call trace processing, deals with S3 cases.
+       */
+       if(call->get_function()->is_closure()) {
+
+           // NOTE: This is a duplicate of the code in closure_exit.
+           // If you change one, change both.
+            function_id_t fn_id = call->get_function()->get_id();
+
+            // NOTE: Dependency code used to be here.
+
+            // Deal with return.
+            // CallTrace ct = state.pop_trace_stack();
+
+            CallTrace ct = call->get_call_trace();
+
+            if (return_value_type == JUMPSXP) {
+                ct.add_to_call_trace(-1, Type(return_value_type));
+
+                // We have no dependencies to add in this case.
+                // state.get_dependencies().add_return(return_value, call->get_function()->get_id(), ct.compute_hash());
+            } else {
+                auto the_type = type_of_sexp(return_value);
+                std::vector<std::string> tags;
+                if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                    // put tag with the function id
+                    // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
+                    tags.push_back(state.lookup_function(return_value)->get_id());
+                }
+
+                ct.add_to_call_trace(-1, Type(return_value, tags));
+
+                state.get_dependencies().add_return(return_value, call->get_function()->get_id(), ct.compute_hash());
+            }
+
+            state.deal_with_call_trace(ct); 
+
+       }
+
+
        state.notify_caller(call);
        state.destroy_call(call);
    }
@@ -589,7 +642,7 @@ void context_jump(dyntracer_t* dyntracer,
    std::size_t context_count = exec_ctxts.size();
    if (context_count == 0) {
    } else if (context_count == 1) {
-       jump_single_context(state, exec_ctxts.front(), false, JUMPSXP, rho);
+       jump_single_context(state, exec_ctxts.front(), false, JUMPSXP, return_value, rho); // 
    } else {
        auto begin_iter = exec_ctxts.begin();
        auto end_iter = --exec_ctxts.end();
@@ -597,10 +650,10 @@ void context_jump(dyntracer_t* dyntracer,
            (begin_iter->is_special() &&
             begin_iter->get_special()->get_function()->is_return());
        for (auto iter = begin_iter; iter != end_iter; ++iter) {
-           jump_single_context(state, *iter, returned, JUMPSXP, rho);
+           jump_single_context(state, *iter, returned, JUMPSXP, return_value, rho);
        }
        jump_single_context(
-           state, *end_iter, returned, type_of_sexp(return_value), rho);
+           state, *end_iter, returned, type_of_sexp(return_value), return_value, rho);
    }
    state.exit_probe(Event::ContextJump);
 }
