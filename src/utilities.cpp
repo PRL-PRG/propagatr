@@ -4,6 +4,8 @@
 
 #include <algorithm>
 
+#include "sexptypes.h"
+
 const bool SHORTEN_ENV = true;
 
 int mkdir_p(const char *path, mode_t mode)
@@ -82,13 +84,14 @@ std::string deal_with_promise(SEXP thing) {
     }
 
     auto the_type = TYPEOF(val);
-
-    // TODO test this with real promises
+    
     if (val != R_UnboundValue) {
         // std::cout << param_pos << ": something was passed and it was used.\n";
-        return get_type_of_sexp(val);
+
+        return(get_type_of_sexp(val));
     } else {
-        return "missing";
+        // If the type of old_expr is symbol or language, then it's missing.
+        return(get_type_of_sexp(old_expr));
     }
 }
 
@@ -243,8 +246,19 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
             // Sanitize name.
             std::string the_name_as_string(CHAR(VECTOR_ELT(names, i)));
 
-            std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
-            std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
+            // std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+            // std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
+
+            std::string oldComma(",");
+            std::string oldBacktick("`");
+
+            int pos;
+
+            while ((pos = the_name_as_string.find(oldComma)) != std::string::npos)
+                the_name_as_string.replace(pos, oldComma.length(), "[PROPAGATR-COMMA]");
+
+            while ((pos = the_name_as_string.find(oldBacktick)) != std::string::npos)
+                the_name_as_string.replace(pos, oldComma.length(), "[PROPAGATR-BACKTICK]");
 
             names_tag.append("`"); // delimits names
             names_tag.append(the_name_as_string);
@@ -293,8 +307,19 @@ std::string list_logic(SEXP list_sxp) {
                 // NAMES :: column names
                 std::string the_name_as_string(CHAR(STRING_ELT(col_names, i)));
 
-                std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
-                std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
+                // std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+                // std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
+
+                std::string oldComma(",");
+                std::string oldBacktick("`");
+
+                int pos;
+
+                while ((pos = the_name_as_string.find(oldComma)) != std::string::npos)
+                    the_name_as_string.replace(pos, oldComma.length(), "[PROPAGATR-COMMA]");
+
+                while ((pos = the_name_as_string.find(oldBacktick)) != std::string::npos)
+                    the_name_as_string.replace(pos, oldComma.length(), "[PROPAGATR-BACKTICK]");
 
                 // Deal with the type of the column
                 SEXP elt = VECTOR_ELT(list_sxp, i);
@@ -358,8 +383,19 @@ std::string list_logic(SEXP list_sxp) {
             ret_str = "struct<";
             std::string the_name_as_string(CHAR(VECTOR_ELT(names, i)));
 
-            std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
-            std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
+            // std::replace(the_name_as_string.begin(), the_name_as_string.end(), ',', '#');
+            // std::replace(the_name_as_string.begin(), the_name_as_string.end(), '`', '#');
+
+            std::string oldComma(",");
+            std::string oldBacktick("`");
+
+            int pos;
+
+            while ((pos = the_name_as_string.find(oldComma)) != std::string::npos)
+                the_name_as_string.replace(pos, oldComma.length(), "[PROPAGATR-COMMA]");
+
+            while ((pos = the_name_as_string.find(oldBacktick)) != std::string::npos)
+                the_name_as_string.replace(pos, oldComma.length(), "[PROPAGATR-BACKTICK]");
 
             inner_names.append("`"); // backticks to delimit names
             inner_names.append(the_name_as_string);

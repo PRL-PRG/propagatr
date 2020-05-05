@@ -212,9 +212,57 @@ void closure_entry(dyntracer_t* dyntracer,
             function_call->get_call_trace()->set_has_dots(true);
             function_call->get_call_trace()->add_to_call_trace(arg->get_formal_parameter_position(), Type(DOTSXP));
             // break; // We only need one. But in case things are out of order...
+        } else {
+            int param_pos = arg->get_formal_parameter_position();
+            DenotedValue * arg_val = arg->get_denoted_value();
+
+            SEXP raw_obj = arg_val->get_raw_object();
+            std::vector<std::string> tags;
+
+            // We are not forcing promises. This is good.
+            if (arg_val->is_promise()) {
+                
+                SEXP val = dyntrace_get_promise_value(raw_obj);
+                SEXP old_expr = dyntrace_get_promise_expression(raw_obj);
+                
+                while (type_of_sexp(val) == PROMSXP) {
+                    old_expr = dyntrace_get_promise_expression(val);
+                    val = dyntrace_get_promise_value(val);
+                }
+
+                auto the_type = type_of_sexp(val);
+
+                // TODO test this with real promises
+                if (val != R_UnboundValue) {
+                    // std::cout << param_pos << ": something was passed and it was used.\n";
+
+                    if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                        // put tag with the function id
+                        // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                        tags.push_back(state.lookup_function(val)->get_id());
+                    }
+
+                    function_call->get_call_trace()->add_to_call_trace(param_pos, Type(val, tags));
+                } else {
+                    // If the type of old_expr is symbol or language, then it's missing.
+                    the_type = type_of_sexp(old_expr);
+
+                    if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                        // put tag with the function id
+                        // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                        tags.push_back(state.lookup_function(val)->get_id());
+                    } else if (the_type == SYMSXP || the_type == LANGSXP) {
+                        function_call->get_call_trace()->add_to_call_trace(param_pos, Type(MISSINGSXP));
+                    } else {
+                        function_call->get_call_trace()->add_to_call_trace(param_pos, Type(old_expr, {}));
+                    }
+                }
+            } else {
+                // std::cout << param_pos << ": nothing was passed.\n";
+                function_call->get_call_trace()->add_to_call_trace(param_pos, Type(R_MissingArg));
+            }
         }
     }
-
 
     state.push_stack(function_call);
 

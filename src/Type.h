@@ -14,7 +14,9 @@ class Type {
             top_level_type_ = "jumped";
         } else if (type == DOTSXP) {
             top_level_type_ = "...";
-        } 
+        } else if (type == MISSINGSXP) {
+            top_level_type_ = "any";
+        }
     }
 
     explicit Type(SEXP get_my_type, const std::vector<std::string> tags = {}) {
