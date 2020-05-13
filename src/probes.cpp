@@ -35,6 +35,8 @@ void dyntrace_exit(dyntracer_t* dyntracer,
                    SEXP environment,
                    SEXP result,
                    int error) {
+    std::cout << "dyntrace exiting...\n\n";
+
     TracerState& state = tracer_state(dyntracer);
 
     state.enter_probe(Event::DyntraceExit);
@@ -84,21 +86,21 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, dyntra
             if (val != R_UnboundValue) {
                 // std::cout << param_pos << ": something was passed and it was used.\n";
 
-                if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-                    // put tag with the function id
-                    // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
-                    tags.push_back(state->lookup_function(val)->get_id());
-                }
+                // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                //     // put tag with the function id
+                //     // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                //     tags.push_back(state->lookup_function(val)->get_id());
+                // }
 
                 trace_for_this_call.add_to_call_trace(param_pos, Type(val, tags));
             } else {
                 // std::cout << param_pos << ": passed and not used.\n";
 
-                if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-                    // put tag with the function id
-                    // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
-                    tags.push_back(state->lookup_function(val)->get_id());
-                }
+                // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                //     // put tag with the function id
+                //     // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                //     tags.push_back(state->lookup_function(val)->get_id());
+                // }
 
                 tags.push_back("missing");
 
@@ -115,11 +117,11 @@ CallTrace deal_with_function_call(Call* function_call, SEXP return_value, dyntra
 
     auto the_type = type_of_sexp(return_value);
     std::vector<std::string> tags;
-    if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-        // put tag with the function id
-        // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
-        tags.push_back(state->lookup_function(return_value)->get_id());
-    }
+    // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+    //     // put tag with the function id
+    //     // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
+    //     tags.push_back(state->lookup_function(return_value)->get_id());
+    // }
 
     trace_for_this_call.add_to_call_trace(-1, Type(return_value, tags));
 
@@ -196,11 +198,11 @@ void closure_entry(dyntracer_t* dyntracer,
                     the_type = type_of_sexp(value);
                 }
 
-                if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-                    // put tag with the function id
-                    // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
-                    tags.push_back(state.lookup_function(value)->get_id());
-                }
+                // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                //     // put tag with the function id
+                //     // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                //     tags.push_back(state.lookup_function(value)->get_id());
+                //
 
                 // add the type to the call trace.
                 function_call->get_call_trace()->add_to_call_trace(arg->get_formal_parameter_position(), Type(value, tags));
@@ -236,22 +238,22 @@ void closure_entry(dyntracer_t* dyntracer,
                 if (val != R_UnboundValue) {
                     // std::cout << param_pos << ": something was passed and it was used.\n";
 
-                    if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-                        // put tag with the function id
-                        // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
-                        tags.push_back(state.lookup_function(val)->get_id());
-                    }
+                    // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                    //     // put tag with the function id
+                    //     // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                    //     tags.push_back(state.lookup_function(val)->get_id());
+                    // }
 
                     function_call->get_call_trace()->add_to_call_trace(param_pos, Type(val, tags));
                 } else {
                     // If the type of old_expr is symbol or language, then it's missing.
                     the_type = type_of_sexp(old_expr);
 
-                    if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-                        // put tag with the function id
-                        // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
-                        tags.push_back(state.lookup_function(val)->get_id());
-                    } else if (the_type == SYMSXP || the_type == LANGSXP) {
+                    // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                    //     // put tag with the function id
+                    //     // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+                    //     tags.push_back(state.lookup_function(val)->get_id());
+                    if (the_type == SYMSXP || the_type == LANGSXP) {
                         function_call->get_call_trace()->add_to_call_trace(param_pos, Type(MISSINGSXP));
                     } else {
                         function_call->get_call_trace()->add_to_call_trace(param_pos, Type(old_expr, {}));
@@ -349,11 +351,11 @@ void closure_exit(dyntracer_t* dyntracer,
 
     // auto the_type = type_of_sexp(val);
     std::vector<std::string> tags;
-    if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-        // put tag with the function id
-        // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
-        tags.push_back(state.lookup_function(val)->get_id());
-    }
+    // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+    //     // put tag with the function id
+    //     // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
+    //     tags.push_back(state.lookup_function(val)->get_id());
+    // }
 
     ct.add_to_call_trace(-1, Type(val, tags));
 
@@ -550,11 +552,11 @@ void promise_force_exit(dyntracer_t* dyntracer, const SEXP promise) {
 
             std::vector<std::string> tags;
 
-            if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-                // put tag with the function id
-                // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
-                tags.push_back(state.lookup_function(value)->get_id());
-            }
+            // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+            //     // put tag with the function id
+            //     // tags.push_back("fn-id;" + state->lookup_function(val)->get_id());
+            //     tags.push_back(state.lookup_function(value)->get_id());
+            // }
 
             // add the type to the call trace.
             ct->add_to_call_trace(param_pos, Type(value, tags));
@@ -633,7 +635,7 @@ void jump_single_context(TracerState& state,
 
             CallTrace ct = call->get_call_trace();
 
-            if (return_value_type == JUMPSXP) {
+            if (return_value_type == JUMPSXP || return_value == NULL) {
                 ct.add_to_call_trace(-1, Type(return_value_type));
 
                 // We have no dependencies to add in this case.
@@ -641,11 +643,11 @@ void jump_single_context(TracerState& state,
             } else {
                 auto the_type = type_of_sexp(return_value);
                 std::vector<std::string> tags;
-                if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
-                    // put tag with the function id
-                    // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
-                    tags.push_back(state.lookup_function(return_value)->get_id());
-                }
+                // if (the_type == CLOSXP || the_type == SPECIALSXP || the_type == BUILTINSXP) {
+                //     // put tag with the function id
+                //     // tags.push_back("fn-id;" + state->lookup_function(return_value)->get_id());
+                //     tags.push_back(state.lookup_function(return_value)->get_id());
+                // }
 
                 ct.add_to_call_trace(-1, Type(return_value, tags));
 

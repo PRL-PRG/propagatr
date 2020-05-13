@@ -71,6 +71,67 @@ bool file_exists(const std::string& filepath) {
 
 // typr stuff
 
+std::string get_language_class(SEXP object) {
+    SEXP head = CAR(object);
+    if (type_of_sexp(head) == SYMSXP) {
+        std::string name(CHAR(PRINTNAME(head)));
+        if (name == "if" || name == "while" || name == "for" || name == "=" ||
+            name == "<-" || name == "(" || name == "{") {
+            return name;
+        }
+    }
+    return "call";
+}
+std::vector<std::string> get_class_names(SEXP object) {
+    std::vector<std::string> class_names;
+    SEXP klass = getAttrib(object, R_ClassSymbol);
+    /* class attribute not present  */
+    if (klass == R_NilValue) {
+        SEXP dim = getAttrib(object, R_DimSymbol);
+        int ndim = Rf_length(dim);
+        /* dimension attribute not present or of length 0  */
+        if (ndim == 0) {
+            SEXPTYPE t = TYPEOF(object);
+            switch (t) {
+            case CLOSXP:
+            case SPECIALSXP:
+            case BUILTINSXP:
+                class_names.push_back("function");
+                break;
+            case REALSXP:
+                /* NOTE: this is handled separately as ^double[]  */
+                /* class_names.push_back("numeric"); */
+                break;
+            case SYMSXP:
+                class_names.push_back("name");
+                break;
+            case LANGSXP:
+                class_names.push_back(get_language_class(object));
+                break;
+            default:
+                /* NOTE: these are handled separately */
+                /* class_names.push_back(sexptype_to_string(type_of_sexp(object))); */
+                break;
+            }
+        }
+        /* two dimensions  */
+        else if (ndim == 2) {
+            class_names.push_back("matrix");
+        }
+        /* not two dimensions  */
+        else {
+            class_names.push_back("array");
+        }
+    }
+    /* class attribute present  */
+    else if (type_of_sexp(klass) == STRSXP) {
+        for (int index = 0; index < LENGTH(klass); ++index) {
+            class_names.push_back(CHAR(STRING_ELT(klass, index)));
+        }
+    }
+    return class_names;
+}
+
 std::string deal_with_promise(SEXP thing) {
     
     // We know its a promise.
@@ -283,8 +344,8 @@ std::string vector_logic(std::string vec_type, SEXP vec_sexp) {
         ret_str.append("@NA-free");
     } else {
         // has NA, treat as NULL
-        if (len == 1)
-            ret_str = "NULL";
+        // if (len == 1)
+        //     ret_str = "NULL";
     }
 
     return ret_str;
@@ -464,6 +525,24 @@ std::string env_logic(SEXP env_sxp) {
 
 /* typr */
 std::string get_type_of_sexp(SEXP thing) {
+
+    // Start by checking to see if thing has a class.
+    std::vector<std::string> class_names = get_class_names(thing);
+
+    if (class_names.size() > 0) {
+        // In this case, just return class<fold> as the type.
+        std::sort(class_names.begin(), class_names.end());
+        std::string ret_str = "class<`";
+        for (int i = 0; i < class_names.size(); i++) {
+            if (i != 0)
+                ret_str.append("`, `");
+
+            ret_str.append(class_names[i]);
+        }
+        ret_str.append("`>");
+        return ret_str;
+    }
+
     int len = 1;
     switch (TYPEOF(thing)) {
         case NILSXP:
