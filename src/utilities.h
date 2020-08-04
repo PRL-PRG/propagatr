@@ -25,6 +25,9 @@ int mkdir_p(const char *path, mode_t mode);
 /* getting types */
 std::string get_type_of_sexp(SEXP thing);
 
+/* getting classes */
+std::vector<std::string> get_class_names(SEXP object);
+
 int get_file_size(std::ifstream& file);
 
 std::string readfile(std::ifstream& file);
