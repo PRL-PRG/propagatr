@@ -230,6 +230,8 @@ public:
 
     int num_traces = 0;
 
+    // Initialize a Call Trace with a package name, a function name, a function ID, and the dispatch type.
+    // Could also use the CallTrace constructor I guess, TODO: is there a reason we do it this way?
     CallTrace * create_call_trace(std::string pname, 
                                   std::string fname, 
                                   function_id_t fn_id, 
@@ -314,6 +316,10 @@ public:
 
     // propagatr logic is in DependencyNodeGraph
 
+    // Get the dependency node graph.
+    // NOTE: Currently we do nothing with this, so the dependencies are never output.
+    // We would like to use this, though, and it would improve the analysis results if we could
+    // make use of this data. Consider.
     DependencyNodeGraph& get_dependencies() {
         return dependencies_;
     }
@@ -324,6 +330,9 @@ public:
     *
     */
 
+    // Send a call trace to the tracer for processing.
+    // Either we've seen the call trace before, in which case we want to count that and discard the trace,
+    // or we haven't and we need to save it.
     void deal_with_call_trace(CallTrace a_trace) {
         if (traces_.count(a_trace) == 1) {
             // its in
@@ -367,7 +376,7 @@ public:
 
       out << "}\",\"{";
 
-        // attrs
+      // attrs
       std::vector<std::string> attrs = type.get_attr_names();
       size_as_int = attrs.size();
       for (int i = 0; i < size_as_int; ++i) {
@@ -383,13 +392,13 @@ public:
       return out.str();
     }
 
+    // Serialize and output the list of traces that we've seen.
     void serialize_traces_list() {
 
       // 1. init stringstream
       std::stringstream out;
 
       // make directories - this always runs before writing dependencies
-      // TODO: ensure results directory exists or make
       struct stat info;
       if (stat(output_dirpath_.c_str(), &info) != 0) {
         // DNE, create
@@ -398,14 +407,14 @@ public:
         // exists, nothing to do
       }
 
-      std::ofstream out_file(output_dirpath_ + "/traces_" + analyzed_file_name_ + ".txt");
+      std::ofstream out_file(get_output_dirpath() + "/traces_" + analyzed_file_name_ + ".txt");
 
+      // We need this to store the max number of args to generate a good .csv header.
       int max_of_max = 0;
 
       // 2. iterate through keys \in traces_
       //    print the trace + counts to file
       for (std::pair<CallTrace, CallTrace> element : traces_) {
-        // what format do we want?
         CallTrace el = element.second;
 
         std::string dispatch_type = "None";
@@ -418,6 +427,7 @@ public:
             break;
         }
 
+        // Write the preamble.
         std::unordered_map<int, Type> trace_map = el.get_call_trace();
         out << package_under_analysis_ << "," << el.get_package_name() << "," << el.get_function_name() << ",\"" << el.get_fn_id() << "\"," << el.compute_hash() << "," << el.compute_hash_just_for_types() << "," << dispatch_type << "," << el.get_has_dots() << "," << counts_[el] << ",";
 
@@ -427,6 +437,8 @@ public:
           keys.push_back(kv.first);
         }
 
+        // We need to get the trace with the maximum number of args, so that we can generate
+        // the correct .csv header.
         int max_ = keys[0];
         for (int v : keys) {
           if (max_ < v) 
@@ -435,6 +447,7 @@ public:
 
         max_of_max = fmax(max_, max_of_max);
 
+        // Serialize the traces.
         for (int i = -1; i <= max_; ++i) {
           if (std::find(keys.begin(), keys.end(), i) != keys.end()) {
             // found
@@ -477,10 +490,8 @@ public:
         // out_file << out.rdbuf();
         // out.clear();
       }
-      
-      // generate the header, and TODO write it to the beginning of the file...
-      // might involve having to copy the file
-
+    
+      // Generate header, write it, then write all the traces out.
       int max_num_of_args = max_of_max;
       std::string init_header_string = "package_being_analyzed,package,fun_name,fun_id,trace_hash,type_hash,dispatch,has_dots,count,arg_t_r,arg_c_r,arg_a_r";
       for (int i = 0; i <= max_num_of_args; ++i) {
@@ -494,6 +505,8 @@ public:
       out_file.close();
     }
 
+    // Write out all the dependencies.
+    // TODO: better comments once we work on this more.
     void serialize_dependencies() {
       std::stringstream out;
 
@@ -507,15 +520,16 @@ public:
       // then, print the fun_ids mapping to function names and packages
     }
 
+    // Call this when you are done tracing.
     void serialize_and_output() {
       
       std::cout << "begin: serialize traces...\n\n";
 
       serialize_traces_list();
 
-      std::cout << "begin: serialize dependencies...\n\n";
+      // std::cout << "begin: serialize dependencies...\n\n";
 
-      serialize_dependencies();
+      // serialize_dependencies();
 
       std::cout << "end: serialize...\n\n";
     }
