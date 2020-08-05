@@ -93,8 +93,11 @@ public:
     if (iter != functions_.end()) {
       return iter->second;
     }
-    const auto [package_name, function_definition, function_id] =
-        Function::compute_definition_and_id(op);
+    const auto val = Function::compute_definition_and_id(op);
+    const auto package_name = val ;
+    const auto function_definition = val.;
+    const auto function_id =
+
     auto iter2 = function_cache_.find(function_id);
     if (iter2 == function_cache_.end()) {
       function =
@@ -336,7 +339,14 @@ public:
     void deal_with_call_trace(CallTrace a_trace) {
         if (traces_.count(a_trace) == 1) {
             // its in
-            counts_.insert_or_assign(a_trace, counts_.at(a_trace) + 1);
+          auto i = counts_.find(a_trace);
+          auto val = counts_.at(a_trace) + 1;
+
+          if (i == counts_.end()) {
+            counts_.insert(std::make_pair(a_trace, val));
+          } else {
+            i->second = val;
+          }
         } else {
             // its not in yet
             traces_.insert(std::make_pair(a_trace, a_trace));

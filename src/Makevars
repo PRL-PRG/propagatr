@@ -1,4 +1,4 @@
 GIT_COMMIT_INFO != git log --pretty=oneline -1
-PKG_CPPFLAGS=-I$(R_HOME)/src/include/ -DGIT_COMMIT_INFO='"$(GIT_COMMIT_INFO)"' --std=c++17 -g3 -O0 -ggdb3
+PKG_CPPFLAGS=-I$(R_HOME)/src/include/ -DGIT_COMMIT_INFO='"$(GIT_COMMIT_INFO)"' --std=c++14 -g3 -O0 -ggdb3
 PKG_LIBRARY_PATH=$LIBRARY_PATH:/usr/local/opt/openssl/lib/
 PKG_LIBS=-lssl -lcrypto

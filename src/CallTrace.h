@@ -65,7 +65,12 @@ class CallTrace {
     }
 
     void add_to_call_trace(int ppos, Type ptype) {
-        call_trace_.insert_or_assign(ppos, ptype);
+        auto i = call_trace_.find(ppos);
+        if (i == call_trace_.end()) {
+            call_trace_.insert(std::make_pair(ppos, ptype));
+        } else {
+            i->second = ptype;
+        }
     }
 
     bool operator==(const CallTrace & trace) const {
