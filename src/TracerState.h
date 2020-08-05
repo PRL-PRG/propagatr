@@ -19,6 +19,8 @@
 #include <string>  // for serializing
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <algorithm>
+#include <vector>
 
 #include <unordered_map>
 
@@ -93,8 +95,10 @@ public:
     if (iter != functions_.end()) {
       return iter->second;
     }
+    
     const auto [package_name, function_definition, function_id] =
         Function::compute_definition_and_id(op);
+
     auto iter2 = function_cache_.find(function_id);
     if (iter2 == function_cache_.end()) {
       function =
