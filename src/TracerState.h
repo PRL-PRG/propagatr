@@ -93,11 +93,8 @@ public:
     if (iter != functions_.end()) {
       return iter->second;
     }
-    const auto val = Function::compute_definition_and_id(op);
-    const auto package_name = val ;
-    const auto function_definition = val.;
-    const auto function_id =
-
+    const auto [package_name, function_definition, function_id] =
+        Function::compute_definition_and_id(op);
     auto iter2 = function_cache_.find(function_id);
     if (iter2 == function_cache_.end()) {
       function =
