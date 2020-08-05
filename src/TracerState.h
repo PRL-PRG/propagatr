@@ -19,6 +19,8 @@
 #include <string>  // for serializing
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <algorithm>
+#include <vector>
 
 #include <unordered_map>
 
@@ -94,9 +96,9 @@ public:
       return iter->second;
     }
     const auto val = Function::compute_definition_and_id(op);
-    const auto package_name = val ;
-    const auto function_definition = val.;
-    const auto function_id =
+    const auto package_name = std::get<0>(val);
+    const auto function_definition = std::get<1>(val);
+    const auto function_id = std::get<2>(val);
 
     auto iter2 = function_cache_.find(function_id);
     if (iter2 == function_cache_.end()) {
